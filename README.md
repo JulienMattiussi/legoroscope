@@ -33,18 +33,17 @@ make dev       # http://localhost:6677
 
 ## Variables d'environnement
 
-| Variable                 | Description                                        |
-| ------------------------ | -------------------------------------------------- |
-| `AUTH_SECRET`            | Secret aléatoire 32 caractères (NextAuth)          |
-| `AUTH_GITHUB_ID`         | Client ID de l'OAuth App GitHub                    |
-| `AUTH_GITHUB_SECRET`     | Client Secret de l'OAuth App GitHub                |
-| `ALLOWED_GITHUB_LOGIN`   | Login GitHub autorisé à se connecter               |
-| `KV_URL`                 | URL de connexion Vercel KV                         |
-| `KV_REST_API_URL`        | URL REST Vercel KV                                 |
-| `KV_REST_API_TOKEN`      | Token REST Vercel KV                               |
-| `DISCORD_PUBLIC_KEY`     | Clé publique Ed25519 de l'application Discord      |
-| `DISCORD_APPLICATION_ID` | ID de l'application Discord                        |
-| `DISCORD_BOT_TOKEN`      | Token bot Discord (pour enregistrer les commandes) |
+| Variable                   | Description                                        |
+| -------------------------- | -------------------------------------------------- |
+| `AUTH_SECRET`              | Secret aléatoire 32 caractères (NextAuth)          |
+| `AUTH_GITHUB_ID`           | Client ID de l'OAuth App GitHub                    |
+| `AUTH_GITHUB_SECRET`       | Client Secret de l'OAuth App GitHub                |
+| `ALLOWED_GITHUB_LOGIN`     | Login GitHub autorisé à se connecter               |
+| `UPSTASH_REDIS_REST_URL`   | URL REST Upstash Redis (via Vercel Storage)        |
+| `UPSTASH_REDIS_REST_TOKEN` | Token REST Upstash Redis                           |
+| `DISCORD_PUBLIC_KEY`       | Clé publique Ed25519 de l'application Discord      |
+| `DISCORD_APPLICATION_ID`   | ID de l'application Discord                        |
+| `DISCORD_BOT_TOKEN`        | Token bot Discord (pour enregistrer les commandes) |
 
 En développement local, les variables KV peuvent être omises — un store en mémoire (`global._localStore`) est utilisé automatiquement.
 

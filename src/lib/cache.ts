@@ -1,8 +1,14 @@
-import { kv } from "@vercel/kv";
+import { Redis } from "@upstash/redis";
 import type { Sign } from "@/lib/signs";
 import type { StrategyName } from "@/lib/scraper";
 
-const isKvAvailable = () => !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+const isKvAvailable = () =>
+  !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+
+const kv = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL ?? "",
+  token: process.env.UPSTASH_REDIS_REST_TOKEN ?? "",
+});
 
 // In-memory fallback for local dev. Attached to global to survive Next.js HMR.
 const g = global as typeof global & { _localStore?: Map<string, unknown> };

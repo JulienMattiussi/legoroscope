@@ -1,23 +1,22 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-// Mock @vercel/kv so tests never touch a real Redis instance
-vi.mock("@vercel/kv", () => ({
-  kv: {
-    get: vi.fn(),
-    set: vi.fn(),
-  },
+// vi.hoisted runs before vi.mock so the same spy instances are shared
+// between the mock factory and the test body
+const { mockGet, mockSet } = vi.hoisted(() => ({
+  mockGet: vi.fn(),
+  mockSet: vi.fn(),
 }));
 
-import { kv } from "@vercel/kv";
-import { getCachedHoroscope, setCachedHoroscope } from "@/lib/cache";
+vi.mock("@upstash/redis", () => ({
+  Redis: vi.fn().mockReturnValue({ get: mockGet, set: mockSet, del: vi.fn() }),
+}));
 
-const mockGet = vi.mocked(kv.get);
-const mockSet = vi.mocked(kv.set);
+import { getCachedHoroscope, setCachedHoroscope } from "@/lib/cache";
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.stubEnv("KV_REST_API_URL", "https://test.kv");
-  vi.stubEnv("KV_REST_API_TOKEN", "test-token");
+  vi.stubEnv("UPSTASH_REDIS_REST_URL", "https://test.upstash.io");
+  vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "test-token");
 });
 
 afterEach(() => {
