@@ -67,7 +67,9 @@ tests/
 
 ## Signs
 
-Slugs: `belier`, `taureau`, `gemeaux`, `cancer`, `lion`, `vierge`, `balance`, `scorpion`, `sagittaire`, `capricorne`, `verseau`, `poissons`.
+Slugs: `belier`, `taureau`, `gemeaux`, `cancer`, `lion`, `vierge`, `balance`, `scorpion`, `sagittaire`, `capricorne`, `verseau`, `poissons`, `furet`.
+
+Le Furet est le 13e signe bonus du Gorafi — présent occasionnellement dans les articles, absent le reste du temps (la page affiche alors "non disponible").
 
 ## KV key schema
 

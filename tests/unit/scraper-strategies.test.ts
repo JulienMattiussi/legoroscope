@@ -26,15 +26,15 @@ describe("CSS strategy — extractSignsFromArticle", () => {
     expect(results.taureau).toBe("Les astres vous sourient.");
   });
 
-  it("ignores unknown signs like Furet", () => {
+  it("extracts the Furet bonus sign when present", () => {
     const results = extractSignsFromArticle(ARTICLE_HTML);
-    expect(Object.keys(results)).not.toContain("furet");
+    expect(results.furet).toBe("Le furet bonus du Gorafi.");
   });
 
   it("ignores paragraphs without a <strong> tag", () => {
     const results = extractSignsFromArticle(ARTICLE_HTML);
-    // Only 2 known signs in the fixture
-    expect(Object.keys(results)).toHaveLength(2);
+    // belier + taureau + furet
+    expect(Object.keys(results)).toHaveLength(3);
   });
 });
 
@@ -56,8 +56,8 @@ describe("Regex strategy — extractSignsWithRegex", () => {
     expect(results.taureau).toBe("Les astres vous sourient.");
   });
 
-  it("ignores unknown signs", () => {
+  it("extracts the Furet bonus sign when present", () => {
     const results = extractSignsWithRegex(ARTICLE_HTML);
-    expect(Object.keys(results)).not.toContain("furet");
+    expect(results.furet).toBe("Le furet bonus du Gorafi.");
   });
 });

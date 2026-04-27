@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Mock @vercel/kv so tests never touch a real Redis instance
 vi.mock("@vercel/kv", () => ({
@@ -16,6 +16,12 @@ const mockSet = vi.mocked(kv.set);
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.stubEnv("KV_REST_API_URL", "https://test.kv");
+  vi.stubEnv("KV_REST_API_TOKEN", "test-token");
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
 });
 
 describe("getCachedHoroscope", () => {

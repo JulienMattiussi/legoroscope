@@ -2,7 +2,7 @@ import { kv } from "@vercel/kv";
 import type { Sign } from "@/lib/signs";
 import type { StrategyName } from "@/lib/scraper";
 
-const kvAvailable = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+const isKvAvailable = () => !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 
 // In-memory fallback for local dev. Attached to global to survive Next.js HMR.
 const g = global as typeof global & { _localStore?: Map<string, unknown> };
@@ -40,7 +40,7 @@ function staleKey(sign: Sign): string {
 }
 
 export async function getCachedHoroscope(sign: Sign): Promise<CachedHoroscope | null> {
-  if (!kvAvailable) {
+  if (!isKvAvailable()) {
     const cached = localStore.get(weekKey(sign)) as CachedHoroscope | undefined;
     if (cached) return cached;
     const stale = localStore.get(staleKey(sign)) as CachedHoroscope | undefined;
@@ -63,7 +63,7 @@ export async function setCachedHoroscope(
 ): Promise<void> {
   const entry: CachedHoroscope = { ...data, fetchedAt: new Date().toISOString() };
 
-  if (!kvAvailable) {
+  if (!isKvAvailable()) {
     localStore.set(weekKey(sign), entry);
     localStore.set(staleKey(sign), entry);
     return;
@@ -80,12 +80,12 @@ function userSignKey(githubId: string): string {
 }
 
 export async function getUserSign(githubId: string): Promise<Sign | null> {
-  if (!kvAvailable) return (localStore.get(userSignKey(githubId)) as Sign) ?? null;
+  if (!isKvAvailable()) return (localStore.get(userSignKey(githubId)) as Sign) ?? null;
   return kv.get<Sign>(userSignKey(githubId));
 }
 
 export async function setUserSign(githubId: string, sign: Sign): Promise<void> {
-  if (!kvAvailable) {
+  if (!isKvAvailable()) {
     localStore.set(userSignKey(githubId), sign);
     return;
   }

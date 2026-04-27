@@ -11,6 +11,7 @@ export const SIGNS = [
   { slug: "capricorne", label: "Capricorne", emoji: "♑" },
   { slug: "verseau", label: "Verseau", emoji: "♒" },
   { slug: "poissons", label: "Poissons", emoji: "♓" },
+  { slug: "furet", label: "Furet", emoji: "🐾" },
 ] as const;
 
 export type Sign = (typeof SIGNS)[number]["slug"];

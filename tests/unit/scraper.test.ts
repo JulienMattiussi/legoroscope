@@ -18,6 +18,7 @@ const ALL_SIGNS_RESULT = {
   cancer: "Les astres.", lion: "Les astres.", vierge: "Les astres.",
   balance: "Les astres.", scorpion: "Les astres.", sagittaire: "Les astres.",
   capricorne: "Les astres.", verseau: "Les astres.", poissons: "Les astres.",
+  furet: "Les astres.",
 };
 
 beforeEach(() => vi.clearAllMocks());
@@ -26,7 +27,7 @@ describe("scrapeAllHoroscopes", () => {
   it("returns all signs when CSS strategy succeeds", async () => {
     mockCSS.mockResolvedValue(ALL_SIGNS_RESULT);
     const results = await scrapeAllHoroscopes();
-    expect(Object.keys(results)).toHaveLength(12);
+    expect(Object.keys(results)).toHaveLength(13);
     expect(results.lion?.strategy).toBe("css");
     expect(mockRSS).not.toHaveBeenCalled();
   });
@@ -93,10 +94,10 @@ describe("getMissingSigns", () => {
     expect(missing).not.toContain("lion");
     expect(missing).not.toContain("scorpion");
     expect(missing).toContain("belier");
-    expect(missing).toHaveLength(10);
+    expect(missing).toHaveLength(11);
   });
 
   it("returns all signs when cache is empty", () => {
-    expect(getMissingSigns({})).toHaveLength(12);
+    expect(getMissingSigns({})).toHaveLength(13);
   });
 });

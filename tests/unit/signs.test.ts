@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import { SIGNS, SIGN_SLUGS, isValidSign, getSign } from "@/lib/signs";
 
 describe("signs", () => {
-  it("has exactly 12 signs", () => {
-    expect(SIGNS).toHaveLength(12);
+  it("has exactly 13 signs", () => {
+    expect(SIGNS).toHaveLength(13);
   });
 
   it("every sign has a slug, label and emoji", () => {
@@ -14,8 +14,8 @@ describe("signs", () => {
     }
   });
 
-  it("SIGN_SLUGS contains all 12 slugs", () => {
-    expect(SIGN_SLUGS).toHaveLength(12);
+  it("SIGN_SLUGS contains all 13 slugs", () => {
+    expect(SIGN_SLUGS).toHaveLength(13);
   });
 
   it("isValidSign returns true for known slugs", () => {
