@@ -25,3 +25,18 @@ export function isValidSign(value: string): value is Sign {
 export function getSign(slug: string) {
   return SIGNS.find((s) => s.slug === slug) ?? null;
 }
+
+function normalize(s: string): string {
+  return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+}
+
+// Tolerant match: strips accents and accepts singular when slug is plural.
+// "poisson" → poissons, "bélier" → belier, "Gémeaux" → gemeaux
+export function findSignByInput(input: string): (typeof SIGNS)[number] | null {
+  const n = normalize(input);
+  return (
+    SIGNS.find((s) => normalize(s.slug) === n || normalize(s.label) === n) ??
+    SIGNS.find((s) => normalize(s.slug) === n + "s" || normalize(s.label) === n + "s") ??
+    null
+  );
+}

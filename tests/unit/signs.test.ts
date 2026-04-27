@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { SIGNS, SIGN_SLUGS, isValidSign, getSign } from "@/lib/signs";
+import { SIGNS, SIGN_SLUGS, isValidSign, getSign, findSignByInput } from "@/lib/signs";
 
 describe("signs", () => {
   it("has exactly 13 signs", () => {
@@ -38,5 +38,32 @@ describe("signs", () => {
 
   it("getSign returns null for unknown slug", () => {
     expect(getSign("xyz")).toBeNull();
+  });
+});
+
+describe("findSignByInput", () => {
+  it("matches exact slugs", () => {
+    expect(findSignByInput("lion")?.slug).toBe("lion");
+    expect(findSignByInput("cancer")?.slug).toBe("cancer");
+  });
+
+  it("is case insensitive", () => {
+    expect(findSignByInput("Lion")?.slug).toBe("lion");
+    expect(findSignByInput("CANCER")?.slug).toBe("cancer");
+    expect(findSignByInput("Scorpion")?.slug).toBe("scorpion");
+  });
+
+  it("strips accents", () => {
+    expect(findSignByInput("bélier")?.slug).toBe("belier");
+    expect(findSignByInput("Gémeaux")?.slug).toBe("gemeaux");
+  });
+
+  it("accepts singular when slug is plural", () => {
+    expect(findSignByInput("poisson")?.slug).toBe("poissons");
+  });
+
+  it("returns null for unknown input", () => {
+    expect(findSignByInput("xyz")).toBeNull();
+    expect(findSignByInput("")).toBeNull();
   });
 });

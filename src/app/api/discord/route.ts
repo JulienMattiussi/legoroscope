@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyDiscordSignature, handleInteraction } from "@/lib/discord";
-import { isValidSign, getSign } from "@/lib/signs";
+import { findSignByInput, getSign } from "@/lib/signs";
 import { getCachedHoroscope, setCachedHoroscope, getPseudoSign } from "@/lib/cache";
 import { scrapeHoroscope } from "@/lib/scraper";
 import type { Sign } from "@/lib/signs";
@@ -32,8 +32,9 @@ export async function POST(req: NextRequest) {
   }
 
   let sign: Sign;
-  if (isValidSign(signOption)) {
-    sign = signOption;
+  const signMatch = findSignByInput(signOption);
+  if (signMatch) {
+    sign = signMatch.slug;
   } else {
     const pseudoEntry = await getPseudoSign(signOption);
     if (!pseudoEntry) {

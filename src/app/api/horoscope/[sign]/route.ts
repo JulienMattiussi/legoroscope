@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isValidSign } from "@/lib/signs";
+import { isValidSign, findSignByInput } from "@/lib/signs";
 import type { Sign } from "@/lib/signs";
 import { getCachedHoroscope, setCachedHoroscope, getPseudoSign } from "@/lib/cache";
 import { scrapeAllHoroscopes, ScrapingError } from "@/lib/scraper";
@@ -8,8 +8,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ sig
   const { sign: param } = await params;
 
   let sign: Sign;
-  if (isValidSign(param)) {
-    sign = param;
+  const signMatch = findSignByInput(param);
+  if (signMatch) {
+    sign = signMatch.slug;
   } else {
     const entry = await getPseudoSign(param);
     if (!entry) return NextResponse.json({ error: "Signe inconnu." }, { status: 404 });
