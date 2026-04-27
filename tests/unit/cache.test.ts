@@ -77,7 +77,7 @@ describe("setCachedHoroscope", () => {
     mockPut.mockResolvedValue({ url: "https://blob/x" });
     await setCachedHoroscope("scorpion", { text: "Horoscope", strategy: "css" });
     expect(mockPut).toHaveBeenCalledTimes(2);
-    expect(mockPut.mock.calls[0]?.[0]).toMatch(/^horoscope:\d+:\d+:scorpion$/);
-    expect(mockPut.mock.calls[1]?.[0]).toBe("horoscope:stale:scorpion");
+    expect(mockPut.mock.calls[0]?.[0]).toMatch(/^horoscope\/\d+\/\d+\/scorpion$/);
+    expect(mockPut.mock.calls[1]?.[0]).toBe("horoscope/stale/scorpion");
   });
 });

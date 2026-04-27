@@ -55,11 +55,11 @@ function currentWeekKey(): { year: number; week: number } {
 
 function weekKey(sign: Sign): string {
   const { year, week } = currentWeekKey();
-  return `horoscope:${year}:${week}:${sign}`;
+  return `horoscope/${year}/${week}/${sign}`;
 }
 
 function staleKey(sign: Sign): string {
-  return `horoscope:stale:${sign}`;
+  return `horoscope/stale/${sign}`;
 }
 
 export async function getCachedHoroscope(sign: Sign): Promise<CachedHoroscope | null> {
@@ -92,7 +92,7 @@ export async function setCachedHoroscope(
 }
 
 function userPseudosKey(githubId: string, sign: Sign): string {
-  return `user:${githubId}:pseudos:${sign}`;
+  return `user/${githubId}/pseudos/${sign}`;
 }
 
 export async function getUserPseudos(githubId: string, sign: Sign): Promise<string[]> {
@@ -113,7 +113,7 @@ export async function setUserPseudos(
 }
 
 function pseudoSignKey(pseudo: string): string {
-  return `pseudo:${pseudo.toLowerCase()}`;
+  return `pseudo/${pseudo.toLowerCase()}`;
 }
 
 export async function getPseudoSign(
