@@ -2,6 +2,7 @@ import * as cheerio from "cheerio";
 import type { Sign } from "@/lib/signs";
 import { SIGNS } from "@/lib/signs";
 import { GORAFI_CONFIG } from "@/lib/gorafi.config";
+import type { StrategyOutput } from "./index";
 
 /**
  * Strategy 1: CSS selectors on the Gorafi horoscope article.
@@ -15,7 +16,7 @@ import { GORAFI_CONFIG } from "@/lib/gorafi.config";
  *     <p><strong>Bélier : </strong>prediction text…</p>
  *   </div>
  */
-export async function scrapeAllWithCSS(): Promise<{ results: Partial<Record<Sign, string>>; sourceUrl?: string }> {
+export async function scrapeAllWithCSS(): Promise<StrategyOutput> {
   const articleUrl = await findLatestArticleUrl();
   if (!articleUrl) return { results: {} };
 
@@ -33,11 +34,12 @@ export function extractSignsFromArticle(html: string): Partial<Record<Sign, stri
     const strong = $(el).find("strong").first();
     if (!strong.length) return;
 
-    const strongText = strong.text().replace(/\s*:\s*$/, "").trim();
+    const strongText = strong
+      .text()
+      .replace(/\s*:\s*$/, "")
+      .trim();
 
-    const sign = SIGNS.find(
-      (s) => s.label.toLowerCase() === strongText.toLowerCase(),
-    );
+    const sign = SIGNS.find((s) => s.label.toLowerCase() === strongText.toLowerCase());
     if (!sign) return;
 
     // Text content of <p> minus the <strong> part

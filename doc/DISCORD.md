@@ -11,10 +11,12 @@ Donner un nom (`Legoroscope`), valider.
 ## 2. Récupérer les identifiants
 
 Dans **General Information** :
+
 - Copier **Application ID** → `DISCORD_APPLICATION_ID`
 - Copier **Public Key** → `DISCORD_PUBLIC_KEY`
 
 Dans **Bot** :
+
 - Cliquer **Reset Token** → copier le token → `DISCORD_BOT_TOKEN`
 
 Ajouter ces trois variables dans `.env.local` (dev) ou dans les variables d'environnement Vercel (prod).
@@ -24,6 +26,7 @@ Ajouter ces trois variables dans `.env.local` (dev) ou dans les variables d'envi
 L'endpoint doit être accessible publiquement pour que Discord puisse l'appeler. En dev, il faudrait un tunnel (ngrok, etc.) — ce n'est pas nécessaire pour tester localement, uniquement pour valider la signature Discord.
 
 En prod sur Vercel, l'URL de l'endpoint sera :
+
 ```
 https://<ton-domaine>.vercel.app/api/discord
 ```
@@ -31,6 +34,7 @@ https://<ton-domaine>.vercel.app/api/discord
 ## 4. Configurer l'endpoint dans Discord
 
 Dans **General Information** → **Interactions Endpoint URL** :
+
 ```
 https://<ton-domaine>.vercel.app/api/discord
 ```
@@ -52,6 +56,7 @@ Ce script appelle l'API REST Discord pour enregistrer la commande `/horoscope` a
 ## 6. Ajouter le bot à un serveur
 
 Dans **OAuth2** → **URL Generator** :
+
 - Scopes : `applications.commands`
 - Permissions : aucune (le bot ne fait que répondre aux interactions)
 
@@ -59,8 +64,8 @@ Ouvrir l'URL générée et sélectionner le serveur cible.
 
 ## Récapitulatif des variables
 
-| Variable | Où la trouver |
-|---|---|
+| Variable                 | Où la trouver                        |
+| ------------------------ | ------------------------------------ |
 | `DISCORD_APPLICATION_ID` | General Information → Application ID |
-| `DISCORD_PUBLIC_KEY` | General Information → Public Key |
-| `DISCORD_BOT_TOKEN` | Bot → Reset Token |
+| `DISCORD_PUBLIC_KEY`     | General Information → Public Key     |
+| `DISCORD_BOT_TOKEN`      | Bot → Reset Token                    |

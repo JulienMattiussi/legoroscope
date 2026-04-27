@@ -3,6 +3,7 @@ import type { Sign } from "@/lib/signs";
 import { SIGNS } from "@/lib/signs";
 import { GORAFI_CONFIG } from "@/lib/gorafi.config";
 import { extractSignsFromArticle } from "./css";
+import type { StrategyOutput } from "./index";
 
 /**
  * Strategy 2: RSS/Atom feed.
@@ -16,7 +17,7 @@ import { extractSignsFromArticle } from "./css";
  * extraction logic on the full page — this makes the two strategies complementary
  * rather than redundant.
  */
-export async function scrapeAllWithRSS(): Promise<{ results: Partial<Record<Sign, string>>; sourceUrl?: string }> {
+export async function scrapeAllWithRSS(): Promise<StrategyOutput> {
   const xml = await fetchFeed(GORAFI_CONFIG.rssFeedUrl);
   if (!xml) return { results: {} };
 
@@ -25,7 +26,8 @@ export async function scrapeAllWithRSS(): Promise<{ results: Partial<Record<Sign
 
   // Try to parse inline HTML from the RSS item first
   const inlineResults = extractFromRssInlineContent(xml);
-  if (Object.keys(inlineResults).length >= 6) return { results: inlineResults, sourceUrl: articleUrl };
+  if (Object.keys(inlineResults).length >= 6)
+    return { results: inlineResults, sourceUrl: articleUrl };
 
   // RSS content was incomplete — fetch the full article and re-use CSS extraction
   const html = await fetchPage(articleUrl);
@@ -62,7 +64,10 @@ function extractSignsFromParagraphs(html: string): Partial<Record<Sign, string>>
     const strong = $(el).find("strong").first();
     if (!strong.length) return;
 
-    const strongText = strong.text().replace(/\s*:\s*$/, "").trim();
+    const strongText = strong
+      .text()
+      .replace(/\s*:\s*$/, "")
+      .trim();
     const sign = SIGNS.find((s) => s.label.toLowerCase() === strongText.toLowerCase());
     if (!sign) return;
 

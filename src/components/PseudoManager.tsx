@@ -63,12 +63,28 @@ export function PseudoManager({ sign, initialPseudos }: Props) {
 
   return (
     <div style={{ marginTop: "2rem" }}>
-      <h2 style={{ fontSize: "1rem", fontWeight: 700, color: "var(--brand-dark)", marginBottom: "0.75rem" }}>
+      <h2
+        style={{
+          fontSize: "1rem",
+          fontWeight: 700,
+          color: "var(--brand-dark)",
+          marginBottom: "0.75rem",
+        }}
+      >
         Pseudos associés
       </h2>
 
       {pseudos.length > 0 && (
-        <ul style={{ listStyle: "none", padding: 0, margin: "0 0 0.75rem", display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+        <ul
+          style={{
+            listStyle: "none",
+            padding: 0,
+            margin: "0 0 0.75rem",
+            display: "flex",
+            flexWrap: "wrap",
+            gap: "0.5rem",
+          }}
+        >
           {pseudos.map((pseudo) => (
             <li
               key={pseudo}

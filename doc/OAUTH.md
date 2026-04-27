@@ -6,10 +6,10 @@
 
 Aller sur [github.com/settings/developers](https://github.com/settings/developers) → **OAuth Apps** → **New OAuth App**
 
-| Champ | Valeur |
-|---|---|
-| Application name | `Legoroscope (dev)` |
-| Homepage URL | `http://localhost:6677` |
+| Champ                      | Valeur                                           |
+| -------------------------- | ------------------------------------------------ |
+| Application name           | `Legoroscope (dev)`                              |
+| Homepage URL               | `http://localhost:6677`                          |
 | Authorization callback URL | `http://localhost:6677/api/auth/callback/github` |
 
 Cliquer **Register application**, puis générer un **Client secret**.
@@ -48,21 +48,21 @@ Aller sur `http://localhost:6677` → **Connexion GitHub** → l'app doit rediri
 
 Même démarche que pour le dev, avec les URLs de production :
 
-| Champ | Valeur |
-|---|---|
-| Application name | `Legoroscope` |
-| Homepage URL | `https://<ton-domaine>.vercel.app` |
+| Champ                      | Valeur                                                      |
+| -------------------------- | ----------------------------------------------------------- |
+| Application name           | `Legoroscope`                                               |
+| Homepage URL               | `https://<ton-domaine>.vercel.app`                          |
 | Authorization callback URL | `https://<ton-domaine>.vercel.app/api/auth/callback/github` |
 
 ### 2. Ajouter les variables d'environnement sur Vercel
 
 Dans le dashboard Vercel → projet → **Settings** → **Environment Variables**, ajouter :
 
-| Variable | Valeur |
-|---|---|
-| `AUTH_SECRET` | générer avec `openssl rand -base64 32` (différent du dev) |
-| `AUTH_GITHUB_ID` | client ID de l'OAuth App prod |
-| `AUTH_GITHUB_SECRET` | client secret de l'OAuth App prod |
+| Variable             | Valeur                                                    |
+| -------------------- | --------------------------------------------------------- |
+| `AUTH_SECRET`        | générer avec `openssl rand -base64 32` (différent du dev) |
+| `AUTH_GITHUB_ID`     | client ID de l'OAuth App prod                             |
+| `AUTH_GITHUB_SECRET` | client secret de l'OAuth App prod                         |
 
 > Ne jamais réutiliser le `AUTH_SECRET` de dev en prod.
 

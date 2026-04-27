@@ -27,9 +27,23 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         >
           <Link
             href="/"
-            style={{ fontWeight: 800, color: "var(--brand-dark)", textDecoration: "none", display: "flex", alignItems: "center", gap: "0.5rem" }}
+            style={{
+              fontWeight: 800,
+              color: "var(--brand-dark)",
+              textDecoration: "none",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+            }}
           >
-            <Image src="/ferret.jpg" alt="" width={28} height={28} style={{ borderRadius: "6px" }} unoptimized />
+            <Image
+              src="/ferret.jpg"
+              alt=""
+              width={28}
+              height={28}
+              style={{ borderRadius: "6px" }}
+              unoptimized
+            />
             Legoroscope
           </Link>
           <nav style={{ marginLeft: "auto", display: "flex", gap: "1rem", alignItems: "center" }}>

@@ -1,6 +1,7 @@
 import type { Sign } from "@/lib/signs";
 import { SIGNS } from "@/lib/signs";
 import { GORAFI_CONFIG } from "@/lib/gorafi.config";
+import type { StrategyOutput } from "./index";
 
 /**
  * Strategy 3: regex on raw HTML.
@@ -13,7 +14,7 @@ import { GORAFI_CONFIG } from "@/lib/gorafi.config";
  *   1. Fetch the category page and extract the latest article URL via regex.
  *   2. Fetch the article and extract each sign's prediction via regex.
  */
-export async function scrapeAllWithRegex(): Promise<{ results: Partial<Record<Sign, string>>; sourceUrl?: string }> {
+export async function scrapeAllWithRegex(): Promise<StrategyOutput> {
   const categoryHtml = await fetchPage(GORAFI_CONFIG.categoryUrl);
   if (!categoryHtml) return { results: {} };
 
@@ -48,10 +49,7 @@ export function extractSignsWithRegex(html: string): Partial<Record<Sign, string
     const label = sign.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
     // Pattern: <strong>Label : </strong>TEXT until next <
-    const pattern = new RegExp(
-      `<strong>\\s*${label}\\s*:\\s*<\\/strong>([^<]{10,})`,
-      "i",
-    );
+    const pattern = new RegExp(`<strong>\\s*${label}\\s*:\\s*<\\/strong>([^<]{10,})`, "i");
     const match = cleaned.match(pattern);
     if (match?.[1]) {
       const text = match[1]

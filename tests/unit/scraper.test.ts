@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { scrapeAllHoroscopes, scrapeHoroscope, ScrapingError, getMissingSigns } from "@/lib/scraper";
+import {
+  scrapeAllHoroscopes,
+  scrapeHoroscope,
+  ScrapingError,
+  getMissingSigns,
+} from "@/lib/scraper";
 
 vi.mock("@/lib/scraper/css", () => ({ scrapeAllWithCSS: vi.fn() }));
 vi.mock("@/lib/scraper/rss", () => ({ scrapeAllWithRSS: vi.fn() }));
@@ -14,16 +19,27 @@ const mockRSS = vi.mocked(scrapeAllWithRSS);
 const mockRegex = vi.mocked(scrapeAllWithRegex);
 
 const ALL_SIGNS_RESULT = {
-  belier: "Les astres.", taureau: "Les astres.", gemeaux: "Les astres.",
-  cancer: "Les astres.", lion: "Les astres.", vierge: "Les astres.",
-  balance: "Les astres.", scorpion: "Les astres.", sagittaire: "Les astres.",
-  capricorne: "Les astres.", verseau: "Les astres.", poissons: "Les astres.",
+  belier: "Les astres.",
+  taureau: "Les astres.",
+  gemeaux: "Les astres.",
+  cancer: "Les astres.",
+  lion: "Les astres.",
+  vierge: "Les astres.",
+  balance: "Les astres.",
+  scorpion: "Les astres.",
+  sagittaire: "Les astres.",
+  capricorne: "Les astres.",
+  verseau: "Les astres.",
+  poissons: "Les astres.",
   furet: "Les astres.",
 };
 
 beforeEach(() => vi.clearAllMocks());
 
-const wrap = (results: typeof ALL_SIGNS_RESULT | Partial<typeof ALL_SIGNS_RESULT>, sourceUrl?: string) => ({ results, sourceUrl });
+const wrap = (
+  results: typeof ALL_SIGNS_RESULT | Partial<typeof ALL_SIGNS_RESULT>,
+  sourceUrl?: string,
+) => ({ results, sourceUrl });
 
 describe("scrapeAllHoroscopes", () => {
   it("returns all signs when CSS strategy succeeds", async () => {

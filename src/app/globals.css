@@ -12,7 +12,9 @@ body {
   text-decoration: underline !important;
   text-decoration-color: var(--text-muted);
   text-underline-offset: 2px;
-  transition: color 0.15s, text-decoration-color 0.15s;
+  transition:
+    color 0.15s,
+    text-decoration-color 0.15s;
 }
 .source-link:hover {
   color: var(--brand);

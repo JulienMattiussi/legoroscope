@@ -23,7 +23,14 @@ export default async function PseudosPage() {
 
   return (
     <main style={{ maxWidth: "900px", margin: "0 auto", padding: "2rem 1rem" }}>
-      <h1 style={{ fontSize: "2rem", fontWeight: 800, color: "var(--brand-dark)", marginBottom: "0.25rem" }}>
+      <h1
+        style={{
+          fontSize: "2rem",
+          fontWeight: 800,
+          color: "var(--brand-dark)",
+          marginBottom: "0.25rem",
+        }}
+      >
         Pseudos
       </h1>
       <PseudoGrid initialEntries={entries} />

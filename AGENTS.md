@@ -21,9 +21,9 @@ Deployed on Vercel free tier.
 ## Stack
 
 - **Next.js 15** — App Router, TypeScript strict, API routes as Route Handlers
-- **Vercel KV** (Upstash Redis) — weekly horoscope cache + user↔sign associations + pseudo index
+- **Vercel KV** (Upstash Redis) — weekly horoscope cache + user pseudo associations + pseudo index
 - **NextAuth v5** — GitHub OAuth session management
-- **cheerio** — HTML scraping (strategies 1 & 2)
+- **cheerio** — HTML scraping (CSS and RSS strategies)
 - **Vitest** + `@testing-library/react` — unit and component tests
 - **Playwright** — e2e tests
 - **Prettier** — formatting
@@ -35,16 +35,15 @@ Deployed on Vercel free tier.
 ```
 src/
 ├── app/
-│   ├── page.tsx                        # Home — grid of 13 signs with pseudo count + copy button
-│   ├── [sign]/page.tsx                 # Single sign page with pseudo manager
-│   ├── pseudos/page.tsx                # Alphabetical grid of all pseudos
+│   ├── page.tsx                         # Home — grid of 13 signs with pseudo count + copy button
+│   ├── [sign]/page.tsx                  # Single sign page with pseudo manager
+│   ├── pseudos/page.tsx                 # Alphabetical grid of all pseudos
 │   └── api/
-│       ├── horoscope/[sign]/route.ts   # GET → by sign slug OR pseudo name
-│       ├── horoscopes/route.ts         # GET → all 13 signs at once
-│       ├── discord/route.ts            # POST → Discord interactions
+│       ├── horoscope/[sign]/route.ts    # GET → by sign slug OR pseudo name
+│       ├── horoscopes/route.ts          # GET → all 13 signs at once
+│       ├── discord/route.ts             # POST → Discord interactions
 │       ├── user/pseudos/[sign]/route.ts # GET/POST/DELETE → pseudo management per sign
-│       ├── user/pseudos/route.ts       # GET → all pseudos across all signs
-│       ├── user/sign/route.ts          # GET/POST → user↔sign association
+│       ├── user/pseudos/route.ts        # GET → all pseudos across all signs
 │       └── auth/[...nextauth]/route.ts
 ├── lib/
 │   ├── scraper/
@@ -58,11 +57,10 @@ src/
 │   ├── gorafi.config.ts   # scraping URLs, selectors, and strategy order
 │   └── signs.ts           # SIGNS array + slug helpers
 ├── components/
-│   ├── HoroscopeCard.tsx  # card with Link body + footer (source link + copy button)
+│   ├── HoroscopeCard.tsx  # card: Link body (sign detail) + copy button top-right
 │   ├── CopyButton.tsx     # client component — clipboard copy with 2s feedback
 │   ├── PseudoManager.tsx  # client component — add/delete pseudos on sign page
-│   ├── PseudoGrid.tsx     # client component — alphabetical grid with trash+confirm
-│   └── SignPicker.tsx
+│   └── PseudoGrid.tsx     # client component — alphabetical grid with trash+confirm
 └── styles/
     └── theme.css          # CSS custom properties — all colors live here
 tests/
@@ -79,35 +77,35 @@ Le Furet est le 13e signe bonus du Gorafi — présent occasionnellement dans le
 
 ## KV key schema
 
-| Key                              | Value                                                    |
-| -------------------------------- | -------------------------------------------------------- |
-| `horoscope:{year}:{week}:{sign}` | `{ text, fetchedAt, strategy, sourceUrl }`               |
+| Key                              | Value                                                      |
+| -------------------------------- | ---------------------------------------------------------- |
+| `horoscope:{year}:{week}:{sign}` | `{ text, fetchedAt, strategy, sourceUrl }`                 |
 | `horoscope:stale:{sign}`         | last known good `{ text, fetchedAt, strategy, sourceUrl }` |
-| `user:{githubId}:sign`           | `"scorpion"`                                             |
-| `user:{githubId}:pseudos:{sign}` | `["pseudo1", "pseudo2"]`                                 |
-| `pseudo:{lowercase}`             | `{ sign, userId }` — global reverse index                |
+| `user:{githubId}:pseudos:{sign}` | `["pseudo1", "pseudo2"]`                                   |
+| `pseudo:{lowercase}`             | `{ sign, userId }` — global reverse index                  |
 
 ## Pseudos
 
 Users associate game pseudos with zodiac signs. Constraints:
+
 - A pseudo can belong to only one sign (system-wide). Adding a pseudo to a new sign removes it from the previous one; the API returns `movedFrom` so the UI can notify the user.
 - Pseudo uniqueness is case-insensitive (`localeCompare` with `sensitivity: "base"`).
-- Sign slugs are forbidden as pseudo names to avoid route collisions.
+- Sign slugs are forbidden as pseudo names to avoid route collisions on `/api/horoscope/[identifier]`.
 - The global reverse index (`pseudo:{lowercase}`) allows `GET /api/horoscope/[identifier]` to resolve a pseudo to its sign without scanning all users.
 
 ## Scraper strategies
 
 Strategy order is configured in `src/lib/gorafi.config.ts` (`strategyOrder`). The first strategy that returns ≥ 6 signs wins; falls through to the next on failure or insufficient results.
 
-| Strategy | HTTP requests | Notes |
-| -------- | ------------- | ----- |
-| **css**  | 2 — category page + article | most robust |
-| **rss**  | 1 when inline content complete, else 2 | cheapest |
-| **regex**| 2 — category page + article | no DOM parser |
+| Strategy  | HTTP requests                          | Notes         |
+| --------- | -------------------------------------- | ------------- |
+| **css**   | 2 — category page + article            | most robust   |
+| **rss**   | 1 when inline content complete, else 2 | cheapest      |
+| **regex** | 2 — category page + article            | no DOM parser |
 
 Current order: `["css", "rss", "regex"]`. To change it, edit `strategyOrder` in `gorafi.config.ts`.
 
-Each strategy returns `{ results, sourceUrl }`. The `sourceUrl` (specific article URL) is stored in the cache and exposed in the API response and on the home page cards.
+Each strategy returns a `StrategyOutput` (`{ results, sourceUrl }`), exported from `scraper/index.ts`. The `sourceUrl` (specific article URL) is stored in the cache and shown as a link on the home page.
 
 After all strategies fail, the caller falls back to stale KV (returned with `stale: true`).
 
@@ -115,17 +113,16 @@ All pure parsing functions (`extractSignsFromArticle`, `extractSignsWithRegex`, 
 
 ## API routes
 
-| Route | Method | Description |
-| ----- | ------ | ----------- |
-| `/api/horoscope/[identifier]` | GET | Returns horoscope; `identifier` can be a sign slug **or** a pseudo name |
-| `/api/horoscopes` | GET | All 13 signs at once |
-| `/api/user/pseudos/[sign]` | GET | List pseudos for a sign |
-| `/api/user/pseudos/[sign]` | POST | Add pseudo to sign (moves if already on another sign) |
-| `/api/user/pseudos/[sign]` | DELETE | Remove pseudo from sign |
-| `/api/user/pseudos` | GET | All pseudos across all signs, sorted alphabetically |
-| `/api/discord` | POST | Discord Interactions webhook |
-| `/api/user/sign` | GET/POST | User↔sign association |
-| `/api/auth/[...nextauth]` | — | NextAuth handlers |
+| Route                         | Method | Description                                                             |
+| ----------------------------- | ------ | ----------------------------------------------------------------------- |
+| `/api/horoscope/[identifier]` | GET    | Returns horoscope; `identifier` can be a sign slug **or** a pseudo name |
+| `/api/horoscopes`             | GET    | All 13 signs at once                                                    |
+| `/api/user/pseudos/[sign]`    | GET    | List pseudos for a sign                                                 |
+| `/api/user/pseudos/[sign]`    | POST   | Add pseudo to sign (moves if already on another sign)                   |
+| `/api/user/pseudos/[sign]`    | DELETE | Remove pseudo from sign                                                 |
+| `/api/user/pseudos`           | GET    | All pseudos across all signs, sorted alphabetically                     |
+| `/api/discord`                | POST   | Discord Interactions webhook                                            |
+| `/api/auth/[...nextauth]`     | —      | NextAuth handlers                                                       |
 
 ## Discord
 
@@ -156,42 +153,49 @@ When KV env vars are absent (local dev), `cache.ts` falls back to an in-memory `
 
 ## Current status (as of 2026-04-27)
 
-All three phases are functionally complete. The codebase compiles and the unit test suite passes.
+The codebase is functionally complete. All checks and unit tests pass (37 tests).
 
 ### Done
+
 - **Scraper** — 3 strategies (CSS, RSS, regex) with fallback orchestrator; strategy order in `gorafi.config.ts`; `sourceUrl` (article URL) threaded through scraper → cache → API → UI.
 - **KV cache** — weekly key + stale fallback + global pseudo reverse index; all reads/writes go through `src/lib/cache.ts`; in-memory fallback for local dev.
 - **API routes** — `/api/horoscope/[identifier]` resolves both sign slugs and pseudos; full pseudo CRUD; Discord; auth.
 - **Discord** — Ed25519 verification + command dispatch; `/api/discord` handles PING and `APPLICATION_COMMAND`.
 - **Auth** — NextAuth v5 GitHub OAuth; single allowed login via `ALLOWED_GITHUB_LOGIN` env var.
-- **Frontend** — Home grid (wider cards, 5-line preview, pseudo count badge, copy button, source link); sign detail page with pseudo manager; `/pseudos` page (alphabetical grid, trash+confirm); session-aware nav.
+- **Frontend** — Home grid (3 columns, 1200px wide, pseudo count badge, copy button, source link in subtitle); sign detail page with pseudo manager; `/pseudos` page (alphabetical grid, trash+confirm); session-aware nav.
 - **Unit tests** — `tests/unit/`: all three scraper strategy parsing functions, orchestrator, cache, discord sig, signs (37 tests).
 
 ### Still missing
+
 - `scripts/register-discord-command.ts` — one-off script to register `/horoscope <signe>` via the Discord REST API. Needs `DISCORD_APPLICATION_ID` + `DISCORD_BOT_TOKEN`.
 - `tests/component/` — component tests with Vitest + Testing Library (directory exists, no files yet).
 - `tests/e2e/` — Playwright e2e tests (directory exists, no files yet).
 - Vercel deployment + env vars not wired up yet.
-
-### Notes
-- Tailwind CSS is installed (came with create-next-app) but **not used** — all styling uses inline styles + CSS custom properties from `src/styles/theme.css`. Do not add Tailwind classes.
 
 ## Coding rules
 
 - **TypeScript strict** — no implicit `any`, `noUncheckedIndexedAccess` enabled.
 - **Code and comments in English.** UI copy can be in French since the product is French.
 - **Theme values in `src/styles/theme.css`** as CSS custom properties. Never hardcode colors in components — always `var(--token)`.
+- **Tailwind is installed but not used** — all styling uses inline styles + CSS custom properties. Do not add Tailwind classes.
 - **No speculative abstractions.** Don't add helpers, fallbacks or features that aren't required by the current task.
 - **All scraper strategy parsing functions must be exported and independently testable** (pure functions, no network calls).
-- **No network calls in unit tests** — mock at the strategy boundary.
+- **No network calls in unit tests** — mock at the strategy boundary (`scrapeAllWithCSS`, `scrapeAllWithRSS`, `scrapeAllWithRegex`).
 - **KV reads/writes via `src/lib/cache.ts`** — never call `@vercel/kv` directly in route handlers.
+- **Client components** — any component using hooks (`useState`, `useEffect`) or event handlers must have `"use client"` as its first line.
+- **Buttons inside `<Link>`** — use `e.stopPropagation()` in the button's onClick to prevent the parent link from navigating.
+- **CSS hover/focus effects** — inline styles don't support `:hover`. Add a CSS class in `src/app/globals.css` instead.
+- **TypeScript narrowing across async callbacks** — after `if (!session?.user?.id) return`, extract `const userId = session.user.id` before any `async` callback or `Promise.all` to avoid losing the narrowed type.
+- **Case-insensitive string comparison** — use `a.localeCompare(b, "fr", { sensitivity: "base" }) === 0`.
 - **Run `make check` before committing.**
 
 ## Commands
 
 ```bash
 make install      # npm install + playwright install
-make dev          # Next.js dev server (http://localhost:3000)
+make dev          # Next.js dev server in foreground (http://localhost:6677)
+make start        # Next.js dev server in background (http://localhost:6677)
+make stop         # Stop the background dev server
 make build        # production build
 make test         # unit + e2e
 make test-unit    # vitest run

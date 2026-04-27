@@ -36,7 +36,19 @@ export default async function HomePage() {
             boxShadow: "var(--shadow)",
           }}
         >
-          <Image src="/ferret.jpg" alt="" width={80} height={80} style={{ borderRadius: "12px", marginBottom: "1.75rem", display: "block", margin: "0 auto 1.75rem" }} unoptimized />
+          <Image
+            src="/ferret.jpg"
+            alt=""
+            width={80}
+            height={80}
+            style={{
+              borderRadius: "12px",
+              marginBottom: "1.75rem",
+              display: "block",
+              margin: "0 auto 1.75rem",
+            }}
+            unoptimized
+          />
           <Link
             href="/api/auth/signin"
             style={{
@@ -60,8 +72,9 @@ export default async function HomePage() {
   const host = (await headers()).get("host");
   const baseUrl = `${process.env.NODE_ENV === "production" ? "https" : "http"}://${host}`;
   const res = await fetch(`${baseUrl}/api/horoscopes`, { cache: "no-store" });
-  const payload: Array<{ sign: Sign } & (CachedHoroscope | { text: null; error: true })> =
-    res.ok ? await res.json() : SIGNS.map((s) => ({ sign: s.slug, text: null, error: true }));
+  const payload: Array<{ sign: Sign } & (CachedHoroscope | { text: null; error: true })> = res.ok
+    ? await res.json()
+    : SIGNS.map((s) => ({ sign: s.slug, text: null, error: true }));
 
   const userId = session.user!.id!;
   const pseudoCounts: Partial<Record<Sign, number>> = {};
@@ -73,8 +86,9 @@ export default async function HomePage() {
   );
 
   const sourceUrl =
-    payload.find((item): item is typeof item & { sourceUrl: string } =>
-      "sourceUrl" in item && typeof item.sourceUrl === "string",
+    payload.find(
+      (item): item is typeof item & { sourceUrl: string } =>
+        "sourceUrl" in item && typeof item.sourceUrl === "string",
     )?.sourceUrl ?? GORAFI_CONFIG.categoryUrl;
 
   const toCard = (item: (typeof payload)[number]) => ({
@@ -98,14 +112,22 @@ export default async function HomePage() {
           gap: "0.6rem",
         }}
       >
-        <Image src="/ferret.jpg" alt="" width={36} height={36} style={{ borderRadius: "8px" }} unoptimized />
+        <Image
+          src="/ferret.jpg"
+          alt=""
+          width={36}
+          height={36}
+          style={{ borderRadius: "8px" }}
+          unoptimized
+        />
         Legoroscope
       </h1>
       <p style={{ color: "var(--text-muted)", margin: "0.25rem 0 1rem" }}>
         L&apos;horoscope de la semaine{" "}
         <a href={sourceUrl} target="_blank" rel="noopener noreferrer" className="source-link">
           selon Le Gorafi
-        </a>.
+        </a>
+        .
       </p>
       <div
         style={{

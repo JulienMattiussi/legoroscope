@@ -84,9 +84,7 @@ export default async function SignPage({ params }: Props) {
         </p>
       )}
 
-      {initialPseudos !== null && (
-        <PseudoManager sign={sign} initialPseudos={initialPseudos} />
-      )}
+      {initialPseudos !== null && <PseudoManager sign={sign} initialPseudos={initialPseudos} />}
     </main>
   );
 }

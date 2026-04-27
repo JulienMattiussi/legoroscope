@@ -74,25 +74,6 @@ export async function setCachedHoroscope(
   await kv.set(staleKey(sign), entry);
 }
 
-// User ↔ sign associations
-
-function userSignKey(githubId: string): string {
-  return `user:${githubId}:sign`;
-}
-
-export async function getUserSign(githubId: string): Promise<Sign | null> {
-  if (!isKvAvailable()) return (localStore.get(userSignKey(githubId)) as Sign) ?? null;
-  return kv.get<Sign>(userSignKey(githubId));
-}
-
-export async function setUserSign(githubId: string, sign: Sign): Promise<void> {
-  if (!isKvAvailable()) {
-    localStore.set(userSignKey(githubId), sign);
-    return;
-  }
-  await kv.set(userSignKey(githubId), sign);
-}
-
 // User pseudos per sign
 
 function userPseudosKey(githubId: string, sign: Sign): string {
@@ -104,7 +85,11 @@ export async function getUserPseudos(githubId: string, sign: Sign): Promise<stri
   return (await kv.get<string[]>(userPseudosKey(githubId, sign))) ?? [];
 }
 
-export async function setUserPseudos(githubId: string, sign: Sign, pseudos: string[]): Promise<void> {
+export async function setUserPseudos(
+  githubId: string,
+  sign: Sign,
+  pseudos: string[],
+): Promise<void> {
   if (!isKvAvailable()) {
     localStore.set(userPseudosKey(githubId, sign), pseudos);
     return;
@@ -118,7 +103,9 @@ function pseudoSignKey(pseudo: string): string {
   return `pseudo:${pseudo.toLowerCase()}`;
 }
 
-export async function getPseudoSign(pseudo: string): Promise<{ sign: Sign; userId: string } | null> {
+export async function getPseudoSign(
+  pseudo: string,
+): Promise<{ sign: Sign; userId: string } | null> {
   if (!isKvAvailable()) {
     return (localStore.get(pseudoSignKey(pseudo)) as { sign: Sign; userId: string }) ?? null;
   }

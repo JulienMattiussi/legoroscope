@@ -14,7 +14,10 @@
       "Bash(python3 -c \"import json,sys; p=json.load\\(sys.stdin\\); print\\('deps:', list\\(p.get\\('dependencies',{}\\).keys\\(\\)\\)\\); print\\('devDeps:', list\\(p.get\\('devDependencies',{}\\).keys\\(\\)\\)\\)\")",
       "Bash(git -C /home/julien/Documents/MyRepos/legoroscope remote -v)",
       "Bash(git -C /home/julien/Documents/MyRepos/legoroscope config --local --list)",
-      "Bash(sort -k6 -r)"
+      "Bash(sort -k6 -r)",
+      "Bash(python3 -c \"import json,sys; p=json.load\\(sys.stdin\\); print\\('name:', p.get\\('name'\\)\\); print\\('version:', p.get\\('version'\\)\\)\")",
+      "Bash(git check-ignore *)",
+      "Bash(echo \"exit code: $?\")"
     ],
     "additionalDirectories": [
       "/home/julien/Documents/MyRepos/goroscope",

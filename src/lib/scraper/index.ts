@@ -13,6 +13,11 @@ export type ScrapeResult = {
   sourceUrl?: string;
 };
 
+export type StrategyOutput = {
+  results: Partial<Record<Sign, string>>;
+  sourceUrl?: string;
+};
+
 export class ScrapingError extends Error {
   constructor(sign: Sign) {
     super(`All scraping strategies failed for sign: ${sign}`);
@@ -22,7 +27,7 @@ export class ScrapingError extends Error {
 
 type BulkStrategy = {
   name: StrategyName;
-  fn: () => Promise<{ results: Partial<Record<Sign, string>>; sourceUrl?: string }>;
+  fn: () => Promise<StrategyOutput>;
 };
 
 const ALL_STRATEGIES: Record<StrategyName, BulkStrategy["fn"]> = {

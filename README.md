@@ -1,36 +1,129 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Légoroscope
 
-## Getting Started
+Horoscope hebdomadaire du [Gorafi](https://www.legorafi.fr/category/horoscope/), servi via une API Next.js, affiché dans un bot Discord et une interface web avec connexion GitHub OAuth.
 
-First, run the development server:
+## Fonctionnalités
+
+- **Scraping** — 3 stratégies (CSS, RSS, regex) avec fallback automatique ; cache hebdomadaire dans Vercel KV ; fallback sur la dernière valeur connue si tout échoue.
+- **API REST** — un endpoint par signe, un endpoint global pour tous les signes, résolution de pseudos (un pseudo mappé à un signe → retourne l'horoscope du signe).
+- **Bot Discord** — commande slash `/horoscope <signe>` via webhook Interactions (sans gateway persistant).
+- **Web** — grille des 13 signes avec compte de pseudos, page de détail, page `/pseudos` alphabétique, connexion GitHub OAuth.
+
+## Stack
+
+- **Next.js 15** — App Router, TypeScript strict
+- **Vercel KV** (Upstash Redis) — cache hebdomadaire + index global pseudo→signe
+- **NextAuth v5** — GitHub OAuth (accès restreint à un seul compte)
+- **cheerio** — parsing HTML pour la stratégie CSS
+- **tweetnacl** — vérification de signature Ed25519 pour Discord
+- **Vitest** — tests unitaires (37 tests)
+- **Playwright** — tests e2e
+
+## Démarrage rapide
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# Prérequis : Node.js 20+, npm
+
+cp .env.example .env.local
+# Remplir les variables d'environnement (voir ci-dessous)
+
+make install   # npm install + playwright install
+make dev       # http://localhost:6677
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Variables d'environnement
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Variable               | Description                                          |
+| ---------------------- | ---------------------------------------------------- |
+| `AUTH_SECRET`          | Secret aléatoire 32 caractères (NextAuth)            |
+| `AUTH_GITHUB_ID`       | Client ID de l'OAuth App GitHub                      |
+| `AUTH_GITHUB_SECRET`   | Client Secret de l'OAuth App GitHub                  |
+| `ALLOWED_GITHUB_LOGIN` | Login GitHub autorisé à se connecter                 |
+| `KV_URL`               | URL de connexion Vercel KV                           |
+| `KV_REST_API_URL`      | URL REST Vercel KV                                   |
+| `KV_REST_API_TOKEN`    | Token REST Vercel KV                                 |
+| `DISCORD_PUBLIC_KEY`   | Clé publique Ed25519 de l'application Discord        |
+| `DISCORD_APPLICATION_ID` | ID de l'application Discord                        |
+| `DISCORD_BOT_TOKEN`    | Token bot Discord (pour enregistrer les commandes)   |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+En développement local, les variables KV peuvent être omises — un store en mémoire (`global._localStore`) est utilisé automatiquement.
 
-## Learn More
+## API
 
-To learn more about Next.js, take a look at the following resources:
+| Route                         | Méthode | Description                                                  |
+| ----------------------------- | ------- | ------------------------------------------------------------ |
+| `/api/horoscope/[identifier]` | GET     | Horoscope d'un signe (slug) ou d'un pseudo                   |
+| `/api/horoscopes`             | GET     | Les 13 signes d'un coup                                      |
+| `/api/user/pseudos/[sign]`    | GET     | Pseudos associés à un signe (session requise)                |
+| `/api/user/pseudos/[sign]`    | POST    | Ajouter un pseudo à un signe (déplace si déjà ailleurs)      |
+| `/api/user/pseudos/[sign]`    | DELETE  | Supprimer un pseudo d'un signe                               |
+| `/api/user/pseudos`           | GET     | Tous les pseudos, triés alphabétiquement                     |
+| `/api/discord`                | POST    | Webhook Discord Interactions                                 |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Signes supportés
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+`belier`, `taureau`, `gemeaux`, `cancer`, `lion`, `vierge`, `balance`, `scorpion`, `sagittaire`, `capricorne`, `verseau`, `poissons`, `furet`
 
-## Deploy on Vercel
+Le Furet est le 13e signe bonus du Gorafi — présent occasionnellement.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Commandes
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+make install      # npm install + playwright install
+make dev          # Next.js dev server en foreground (http://localhost:6677)
+make start        # Next.js dev server en arrière-plan
+make stop         # Arrêter le serveur en arrière-plan
+make build        # Build de production
+make test         # unit + e2e
+make test-unit    # vitest run
+make test-watch   # vitest watch
+make test-e2e     # playwright test
+make typecheck    # tsc --noEmit
+make lint         # eslint
+make format       # prettier --write
+make check        # format-check + lint + typecheck + test-unit
+make clean        # rm -rf .next dist
+```
+
+## Structure du projet
+
+```
+src/
+├── app/
+│   ├── page.tsx                         # Home — grille 13 signes
+│   ├── [sign]/page.tsx                  # Page signe + gestionnaire de pseudos
+│   ├── pseudos/page.tsx                 # Grille alphabétique de tous les pseudos
+│   └── api/
+│       ├── horoscope/[sign]/route.ts    # GET → par signe ou pseudo
+│       ├── horoscopes/route.ts          # GET → 13 signes d'un coup
+│       ├── discord/route.ts             # POST → Discord Interactions
+│       ├── user/pseudos/[sign]/route.ts # GET/POST/DELETE → pseudos par signe
+│       ├── user/pseudos/route.ts        # GET → tous les pseudos
+│       └── auth/[...nextauth]/route.ts
+├── lib/
+│   ├── scraper/
+│   │   ├── index.ts        # Orchestrateur avec fallback entre stratégies
+│   │   ├── css.ts          # Stratégie 1 : sélecteurs CSS cheerio
+│   │   ├── rss.ts          # Stratégie 2 : flux RSS/Atom
+│   │   └── regex.ts        # Stratégie 3 : regex sur HTML brut
+│   ├── cache.ts            # Helpers Vercel KV (schéma de clés, TTL, stale fallback, index pseudos)
+│   ├── discord.ts          # Vérification signature Ed25519 + dispatch commandes
+│   ├── auth.ts             # Config NextAuth (GitHub provider, ALLOWED_GITHUB_LOGIN)
+│   ├── gorafi.config.ts    # URLs, sélecteurs et ordre des stratégies
+│   └── signs.ts            # Tableau SIGNS + helpers slugs
+├── components/
+│   ├── HoroscopeCard.tsx   # Carte signe : lien vers détail + bouton copie
+│   ├── CopyButton.tsx      # Client component — copie presse-papiers avec feedback 2s
+│   ├── PseudoManager.tsx   # Client component — ajout/suppression pseudos
+│   └── PseudoGrid.tsx      # Client component — grille alphabétique avec corbeille
+└── styles/
+    └── theme.css           # CSS custom properties — toutes les couleurs ici
+tests/
+├── unit/          # Vitest — logique pure (scraper, cache, signature Discord)
+├── component/     # Vitest + Testing Library (à venir)
+└── e2e/           # Playwright (à venir)
+```
+
+## Licence
+
+MIT — voir [LICENSE](LICENSE).

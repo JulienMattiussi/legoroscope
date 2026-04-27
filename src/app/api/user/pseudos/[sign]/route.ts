@@ -42,7 +42,11 @@ export async function POST(req: NextRequest, { params }: Params) {
       const others = await getUserPseudos(userId, otherSign);
       const match = others.find((p) => isSame(p, trimmed));
       if (match) {
-        await setUserPseudos(userId, otherSign, others.filter((p) => !isSame(p, trimmed)));
+        await setUserPseudos(
+          userId,
+          otherSign,
+          others.filter((p) => !isSame(p, trimmed)),
+        );
         movedFrom = getSign(otherSign)?.label ?? otherSign;
       }
     }),

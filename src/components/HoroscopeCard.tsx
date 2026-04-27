@@ -35,10 +35,14 @@ export function HoroscopeCard({ sign, data, pseudoCount = 0 }: Props) {
           flex: 1,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
+        <div
+          style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}
+        >
           <span style={{ fontSize: "1.5rem" }}>{meta.emoji}</span>
           <strong style={{ color: "var(--brand-dark)" }}>{meta.label}</strong>
-          <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "0.35rem" }}>
+          <span
+            style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "0.35rem" }}
+          >
             {data?.stale && (
               <span
                 title="Données de la semaine précédente"
@@ -86,7 +90,6 @@ export function HoroscopeCard({ sign, data, pseudoCount = 0 }: Props) {
           {data?.text ?? "Chargement…"}
         </p>
       </Link>
-
     </div>
   );
 }
