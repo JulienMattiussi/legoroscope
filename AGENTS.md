@@ -21,7 +21,7 @@ Deployed on Vercel free tier.
 ## Stack
 
 - **Next.js 15** — App Router, TypeScript strict, API routes as Route Handlers
-- **Redis** (via `ioredis`) — weekly horoscope cache + user pseudo associations + pseudo index; `REDIS_URL` injected by Vercel Storage
+- **Vercel KV** (`@vercel/kv`) — weekly horoscope cache + user pseudo associations + pseudo index; credentials injected automatically by Vercel at runtime (not visible in the env vars UI)
 - **NextAuth v5** — GitHub OAuth session management
 - **cheerio** — HTML scraping (CSS and RSS strategies)
 - **Vitest** + `@testing-library/react` — unit and component tests
@@ -142,7 +142,8 @@ AUTH_SECRET=              # random 32-char secret
 AUTH_GITHUB_ID=           # GitHub OAuth App client ID
 AUTH_GITHUB_SECRET=       # GitHub OAuth App client secret
 ALLOWED_GITHUB_LOGIN=     # GitHub username allowed to sign in
-REDIS_URL=                # from Vercel Storage > Serverless Redis (standard redis:// or rediss:// URL)
+KV_REST_API_URL=          # injected automatically by Vercel KV at runtime; add to .env.local for local dev
+KV_REST_API_TOKEN=        # idem
 DISCORD_PUBLIC_KEY=       # for Ed25519 signature verification
 DISCORD_APPLICATION_ID=
 DISCORD_BOT_TOKEN=        # for registering commands
@@ -199,7 +200,7 @@ Every feature, change, or bug fix must be accompanied by:
 - **No speculative abstractions.** Don't add helpers, fallbacks or features that aren't required by the current task.
 - **All scraper strategy parsing functions must be exported and independently testable** (pure functions, no network calls).
 - **No network calls in unit tests** — mock at the strategy boundary (`scrapeAllWithCSS`, `scrapeAllWithRSS`, `scrapeAllWithRegex`).
-- **KV reads/writes via `src/lib/cache.ts`** — never use `ioredis` directly in route handlers.
+- **KV reads/writes via `src/lib/cache.ts`** — never call `@vercel/kv` directly in route handlers.
 - **Client components** — any component using hooks (`useState`, `useEffect`) or event handlers must have `"use client"` as its first line.
 - **Buttons inside `<Link>`** — use `e.stopPropagation()` in the button's onClick to prevent the parent link from navigating.
 - **CSS hover/focus effects** — inline styles don't support `:hover`. Add a CSS class in `src/app/globals.css` instead.

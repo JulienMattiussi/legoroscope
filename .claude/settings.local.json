@@ -20,7 +20,10 @@
       "Bash(echo \"exit code: $?\")",
       "Bash(python3 -c \"import json,sys; p=json.load\\(sys.stdin\\); print\\(json.dumps\\({**p.get\\('dependencies',{}\\), **p.get\\('devDependencies',{}\\)}, indent=2\\)\\)\")",
       "Bash(python3 -c \"import json,sys; p=json.load\\(sys.stdin\\); deps={**p.get\\('dependencies',{}\\), **p.get\\('devDependencies',{}\\)}; print\\('upstash:', '@upstash/redis' in deps\\); print\\('vercel/kv:', '@vercel/kv' in deps\\)\")",
-      "Bash(python3 -c ' *)"
+      "Bash(python3 -c ' *)",
+      "Bash(@vercel/kv)",
+      "Bash(KV_REST_API_URL)",
+      "Bash(KV_REST_API_TOKEN)"
     ],
     "additionalDirectories": [
       "/home/julien/Documents/MyRepos/goroscope",

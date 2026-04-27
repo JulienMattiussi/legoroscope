@@ -1,36 +1,11 @@
-import Redis from "ioredis";
+import { kv } from "@vercel/kv";
 import type { Sign } from "@/lib/signs";
 import type { StrategyName } from "@/lib/scraper";
 
-const isKvAvailable = () => !!process.env.REDIS_URL;
-
-// Reuse the connection across hot reloads and warm invocations.
-const g = global as typeof global & { _kv?: Redis; _localStore?: Map<string, unknown> };
-
-function getKv(): Redis {
-  if (!g._kv) g._kv = new Redis(process.env.REDIS_URL!, { maxRetriesPerRequest: 1 });
-  return g._kv;
-}
-
-async function kvGet<T>(key: string): Promise<T | null> {
-  const raw = await getKv().get(key);
-  return raw ? (JSON.parse(raw) as T) : null;
-}
-
-async function kvSet(key: string, value: unknown, exSeconds?: number): Promise<void> {
-  const serialized = JSON.stringify(value);
-  if (exSeconds) {
-    await getKv().set(key, serialized, "EX", exSeconds);
-  } else {
-    await getKv().set(key, serialized);
-  }
-}
-
-async function kvDel(key: string): Promise<void> {
-  await getKv().del(key);
-}
+const isKvAvailable = () => !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 
 // In-memory fallback for local dev. Attached to global to survive Next.js HMR.
+const g = global as typeof global & { _localStore?: Map<string, unknown> };
 g._localStore ??= new Map();
 const localStore = g._localStore;
 
@@ -74,10 +49,10 @@ export async function getCachedHoroscope(sign: Sign): Promise<CachedHoroscope | 
     return null;
   }
 
-  const cached = await kvGet<CachedHoroscope>(weekKey(sign));
+  const cached = await kv.get<CachedHoroscope>(weekKey(sign));
   if (cached) return cached;
 
-  const stale = await kvGet<CachedHoroscope>(staleKey(sign));
+  const stale = await kv.get<CachedHoroscope>(staleKey(sign));
   if (stale) return { ...stale, strategy: "stale", stale: true };
 
   return null;
@@ -95,8 +70,8 @@ export async function setCachedHoroscope(
     return;
   }
 
-  await kvSet(weekKey(sign), entry, WEEK_TTL_SECONDS);
-  await kvSet(staleKey(sign), entry);
+  await kv.set(weekKey(sign), entry, { ex: WEEK_TTL_SECONDS });
+  await kv.set(staleKey(sign), entry);
 }
 
 // User pseudos per sign
@@ -107,7 +82,7 @@ function userPseudosKey(githubId: string, sign: Sign): string {
 
 export async function getUserPseudos(githubId: string, sign: Sign): Promise<string[]> {
   if (!isKvAvailable()) return (localStore.get(userPseudosKey(githubId, sign)) as string[]) ?? [];
-  return (await kvGet<string[]>(userPseudosKey(githubId, sign))) ?? [];
+  return (await kv.get<string[]>(userPseudosKey(githubId, sign))) ?? [];
 }
 
 export async function setUserPseudos(
@@ -119,7 +94,7 @@ export async function setUserPseudos(
     localStore.set(userPseudosKey(githubId, sign), pseudos);
     return;
   }
-  await kvSet(userPseudosKey(githubId, sign), pseudos);
+  await kv.set(userPseudosKey(githubId, sign), pseudos);
 }
 
 // Global pseudo → sign reverse index (pseudos are unique system-wide)
@@ -134,7 +109,7 @@ export async function getPseudoSign(
   if (!isKvAvailable()) {
     return (localStore.get(pseudoSignKey(pseudo)) as { sign: Sign; userId: string }) ?? null;
   }
-  return kvGet<{ sign: Sign; userId: string }>(pseudoSignKey(pseudo));
+  return kv.get<{ sign: Sign; userId: string }>(pseudoSignKey(pseudo));
 }
 
 export async function setPseudoSign(pseudo: string, sign: Sign, userId: string): Promise<void> {
@@ -142,7 +117,7 @@ export async function setPseudoSign(pseudo: string, sign: Sign, userId: string):
     localStore.set(pseudoSignKey(pseudo), { sign, userId });
     return;
   }
-  await kvSet(pseudoSignKey(pseudo), { sign, userId });
+  await kv.set(pseudoSignKey(pseudo), { sign, userId });
 }
 
 export async function deletePseudoSign(pseudo: string): Promise<void> {
@@ -150,5 +125,5 @@ export async function deletePseudoSign(pseudo: string): Promise<void> {
     localStore.delete(pseudoSignKey(pseudo));
     return;
   }
-  await kvDel(pseudoSignKey(pseudo));
+  await kv.del(pseudoSignKey(pseudo));
 }

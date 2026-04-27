@@ -2,21 +2,21 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // vi.hoisted runs before vi.mock so the same spy instances are shared
 // between the mock factory and the test body
-const { mockGet, mockSet, mockDel } = vi.hoisted(() => ({
+const { mockGet, mockSet } = vi.hoisted(() => ({
   mockGet: vi.fn(),
   mockSet: vi.fn(),
-  mockDel: vi.fn(),
 }));
 
-vi.mock("ioredis", () => ({
-  default: vi.fn().mockReturnValue({ get: mockGet, set: mockSet, del: mockDel }),
+vi.mock("@vercel/kv", () => ({
+  kv: { get: mockGet, set: mockSet, del: vi.fn() },
 }));
 
 import { getCachedHoroscope, setCachedHoroscope } from "@/lib/cache";
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.stubEnv("REDIS_URL", "redis://localhost:6379");
+  vi.stubEnv("KV_REST_API_URL", "https://test.kv.vercel-storage.com");
+  vi.stubEnv("KV_REST_API_TOKEN", "test-token");
 });
 
 afterEach(() => {
@@ -30,7 +30,7 @@ describe("getCachedHoroscope", () => {
       fetchedAt: new Date().toISOString(),
       strategy: "css" as const,
     };
-    mockGet.mockResolvedValueOnce(JSON.stringify(entry));
+    mockGet.mockResolvedValueOnce(entry);
     const result = await getCachedHoroscope("lion");
     expect(result?.text).toBe("Horoscope test");
     expect(result?.stale).toBeUndefined();
@@ -44,7 +44,7 @@ describe("getCachedHoroscope", () => {
     };
     mockGet
       .mockResolvedValueOnce(null) // weekly key miss
-      .mockResolvedValueOnce(JSON.stringify(stale)); // stale key hit
+      .mockResolvedValueOnce(stale); // stale key hit
     const result = await getCachedHoroscope("lion");
     expect(result?.text).toBe("Vieux horoscope");
     expect(result?.stale).toBe(true);

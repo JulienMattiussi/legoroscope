@@ -12,7 +12,7 @@ Horoscope hebdomadaire du [Gorafi](https://www.legorafi.fr/category/horoscope/),
 ## Stack
 
 - **Next.js 15** — App Router, TypeScript strict
-- **Redis** (via ioredis) — cache hebdomadaire + index global pseudo→signe
+- **Vercel KV** (`@vercel/kv`) — cache hebdomadaire + index global pseudo→signe
 - **NextAuth v5** — GitHub OAuth (accès restreint à un seul compte)
 - **cheerio** — parsing HTML pour la stratégie CSS
 - **tweetnacl** — vérification de signature Ed25519 pour Discord
@@ -33,16 +33,16 @@ make dev       # http://localhost:6677
 
 ## Variables d'environnement
 
-| Variable                 | Description                                        |
-| ------------------------ | -------------------------------------------------- |
-| `AUTH_SECRET`            | Secret aléatoire 32 caractères (NextAuth)          |
-| `AUTH_GITHUB_ID`         | Client ID de l'OAuth App GitHub                    |
-| `AUTH_GITHUB_SECRET`     | Client Secret de l'OAuth App GitHub                |
-| `ALLOWED_GITHUB_LOGIN`   | Login GitHub autorisé à se connecter               |
-| `REDIS_URL`              | URL Redis injectée par Vercel Storage              |
-| `DISCORD_PUBLIC_KEY`     | Clé publique Ed25519 de l'application Discord      |
-| `DISCORD_APPLICATION_ID` | ID de l'application Discord                        |
-| `DISCORD_BOT_TOKEN`      | Token bot Discord (pour enregistrer les commandes) |
+| Variable                                | Description                                                                |
+| --------------------------------------- | -------------------------------------------------------------------------- |
+| `AUTH_SECRET`                           | Secret aléatoire 32 caractères (NextAuth)                                  |
+| `AUTH_GITHUB_ID`                        | Client ID de l'OAuth App GitHub                                            |
+| `AUTH_GITHUB_SECRET`                    | Client Secret de l'OAuth App GitHub                                        |
+| `ALLOWED_GITHUB_LOGIN`                  | Login GitHub autorisé à se connecter                                       |
+| `KV_REST_API_URL` / `KV_REST_API_TOKEN` | Injectés automatiquement par Vercel KV au runtime (pas visibles dans l'UI) |
+| `DISCORD_PUBLIC_KEY`                    | Clé publique Ed25519 de l'application Discord                              |
+| `DISCORD_APPLICATION_ID`                | ID de l'application Discord                                                |
+| `DISCORD_BOT_TOKEN`                     | Token bot Discord (pour enregistrer les commandes)                         |
 
 En développement local, les variables KV peuvent être omises — un store en mémoire (`global._localStore`) est utilisé automatiquement.
 
