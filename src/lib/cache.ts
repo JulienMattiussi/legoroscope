@@ -6,7 +6,9 @@ const isKvAvailable = () => !!process.env.BLOB_READ_WRITE_TOKEN;
 
 async function blobGet<T>(key: string): Promise<T | null> {
   try {
-    const res = await get(key, { access: "private" });
+    const { blobs } = await list({ prefix: key, limit: 1 });
+    if (!blobs.length || blobs[0]!.pathname !== key) return null;
+    const res = await get(blobs[0]!.url, { access: "private" });
     if (!res || res.statusCode !== 200) return null;
     const text = await new Response(res.stream).text();
     return JSON.parse(text) as T;

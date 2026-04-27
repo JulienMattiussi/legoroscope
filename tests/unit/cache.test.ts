@@ -41,13 +41,25 @@ function makeStream(data: unknown): ReadableStream<Uint8Array> {
   });
 }
 
-function blobFound(data: unknown) {
-  return { statusCode: 200 as const, stream: makeStream(data), headers: new Headers(), blob: {} };
+function blobEntry(pathname: string, data: unknown) {
+  return { blobs: [{ url: `https://blob/${pathname}`, pathname }] };
+}
+
+function getFound(data: unknown) {
+  const bytes = new TextEncoder().encode(JSON.stringify(data));
+  const stream = new ReadableStream<Uint8Array>({
+    start(c) {
+      c.enqueue(bytes);
+      c.close();
+    },
+  });
+  return { statusCode: 200 as const, stream, headers: new Headers(), blob: {} };
 }
 
 describe("getCachedHoroscope", () => {
   it("returns cached data when the weekly key exists", async () => {
-    mockGet.mockResolvedValueOnce(blobFound(ENTRY));
+    mockList.mockResolvedValueOnce(blobEntry("horoscope/2026/18/lion", ENTRY));
+    mockGet.mockResolvedValueOnce(getFound(ENTRY));
 
     const result = await getCachedHoroscope("lion");
     expect(result?.text).toBe("Horoscope test");
@@ -55,9 +67,10 @@ describe("getCachedHoroscope", () => {
   });
 
   it("falls back to stale data when weekly key is missing", async () => {
-    mockGet
-      .mockResolvedValueOnce(null) // weekly miss
-      .mockResolvedValueOnce(blobFound(STALE));
+    mockList
+      .mockResolvedValueOnce({ blobs: [] }) // weekly miss
+      .mockResolvedValueOnce(blobEntry("horoscope/stale/lion", STALE));
+    mockGet.mockResolvedValueOnce(getFound(STALE));
 
     const result = await getCachedHoroscope("lion");
     expect(result?.text).toBe("Vieux horoscope");
@@ -66,7 +79,7 @@ describe("getCachedHoroscope", () => {
   });
 
   it("returns null when both keys are missing", async () => {
-    mockGet.mockResolvedValue(null);
+    mockList.mockResolvedValue({ blobs: [] });
     const result = await getCachedHoroscope("lion");
     expect(result).toBeNull();
   });
