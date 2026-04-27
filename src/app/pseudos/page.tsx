@@ -10,11 +10,12 @@ export const dynamic = "force-dynamic";
 export default async function PseudosPage() {
   const session = await auth();
   if (!session) redirect("/api/auth/signin");
+  const userId = session.user!.id!;
 
   const entries: PseudoEntry[] = [];
   await Promise.all(
     SIGN_SLUGS.map(async (sign) => {
-      const pseudos = await getUserPseudos(session.user.id, sign as Sign);
+      const pseudos = await getUserPseudos(userId, sign as Sign);
       for (const pseudo of pseudos) entries.push({ pseudo, sign: sign as Sign });
     }),
   );

@@ -13,17 +13,17 @@ import { GORAFI_CONFIG } from "@/lib/gorafi.config";
  *   1. Fetch the category page and extract the latest article URL via regex.
  *   2. Fetch the article and extract each sign's prediction via regex.
  */
-export async function scrapeAllWithRegex(): Promise<Partial<Record<Sign, string>>> {
+export async function scrapeAllWithRegex(): Promise<{ results: Partial<Record<Sign, string>>; sourceUrl?: string }> {
   const categoryHtml = await fetchPage(GORAFI_CONFIG.categoryUrl);
-  if (!categoryHtml) return {};
+  if (!categoryHtml) return { results: {} };
 
   const articleUrl = findArticleUrlWithRegex(categoryHtml);
-  if (!articleUrl) return {};
+  if (!articleUrl) return { results: {} };
 
   const articleHtml = await fetchPage(articleUrl);
-  if (!articleHtml) return {};
+  if (!articleHtml) return { results: {} };
 
-  return extractSignsWithRegex(articleHtml);
+  return { results: extractSignsWithRegex(articleHtml), sourceUrl: articleUrl };
 }
 
 export function findArticleUrlWithRegex(html: string): string | null {

@@ -16,31 +16,31 @@ import { extractSignsFromArticle } from "./css";
  * extraction logic on the full page — this makes the two strategies complementary
  * rather than redundant.
  */
-export async function scrapeAllWithRSS(): Promise<Partial<Record<Sign, string>>> {
+export async function scrapeAllWithRSS(): Promise<{ results: Partial<Record<Sign, string>>; sourceUrl?: string }> {
   const xml = await fetchFeed(GORAFI_CONFIG.rssFeedUrl);
-  if (!xml) return {};
+  if (!xml) return { results: {} };
 
   const articleUrl = extractLatestArticleUrl(xml);
-  if (!articleUrl) return {};
+  if (!articleUrl) return { results: {} };
 
   // Try to parse inline HTML from the RSS item first
   const inlineResults = extractFromRssInlineContent(xml);
-  if (Object.keys(inlineResults).length >= 6) return inlineResults;
+  if (Object.keys(inlineResults).length >= 6) return { results: inlineResults, sourceUrl: articleUrl };
 
   // RSS content was incomplete — fetch the full article and re-use CSS extraction
   const html = await fetchPage(articleUrl);
-  if (!html) return {};
+  if (!html) return { results: {} };
 
-  return extractSignsFromArticle(html);
+  return { results: extractSignsFromArticle(html), sourceUrl: articleUrl };
 }
 
-function extractLatestArticleUrl(xml: string): string | null {
+export function extractLatestArticleUrl(xml: string): string | null {
   const $ = cheerio.load(xml, { xmlMode: true });
   const link = $("item link").first().text().trim();
   return link || null;
 }
 
-function extractFromRssInlineContent(xml: string): Partial<Record<Sign, string>> {
+export function extractFromRssInlineContent(xml: string): Partial<Record<Sign, string>> {
   const $ = cheerio.load(xml, { xmlMode: true });
   const item = $("item").first();
   if (!item.length) return {};

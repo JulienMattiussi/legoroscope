@@ -14,6 +14,7 @@ export type CachedHoroscope = {
   fetchedAt: string; // ISO date
   strategy: StrategyName | "stale";
   stale?: true;
+  sourceUrl?: string;
 };
 
 // A week TTL with a small buffer so Monday re-fetches work cleanly
@@ -109,4 +110,33 @@ export async function setUserPseudos(githubId: string, sign: Sign, pseudos: stri
     return;
   }
   await kv.set(userPseudosKey(githubId, sign), pseudos);
+}
+
+// Global pseudo → sign reverse index (pseudos are unique system-wide)
+
+function pseudoSignKey(pseudo: string): string {
+  return `pseudo:${pseudo.toLowerCase()}`;
+}
+
+export async function getPseudoSign(pseudo: string): Promise<{ sign: Sign; userId: string } | null> {
+  if (!isKvAvailable()) {
+    return (localStore.get(pseudoSignKey(pseudo)) as { sign: Sign; userId: string }) ?? null;
+  }
+  return kv.get<{ sign: Sign; userId: string }>(pseudoSignKey(pseudo));
+}
+
+export async function setPseudoSign(pseudo: string, sign: Sign, userId: string): Promise<void> {
+  if (!isKvAvailable()) {
+    localStore.set(pseudoSignKey(pseudo), { sign, userId });
+    return;
+  }
+  await kv.set(pseudoSignKey(pseudo), { sign, userId });
+}
+
+export async function deletePseudoSign(pseudo: string): Promise<void> {
+  if (!isKvAvailable()) {
+    localStore.delete(pseudoSignKey(pseudo));
+    return;
+  }
+  await kv.del(pseudoSignKey(pseudo));
 }

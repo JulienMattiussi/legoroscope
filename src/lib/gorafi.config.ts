@@ -30,4 +30,12 @@ export const GORAFI_CONFIG = {
    * Matches: /YYYY/MM/DD/horoscope-du-…/
    */
   articleUrlPattern: /\/\d{4}\/\d{2}\/\d{2}\/horoscope-du-/,
+
+  /**
+   * Scraping strategy order. The first strategy that returns ≥ 6 signs wins.
+   * "rss"   — 1 HTTP request when inline content is complete (cheapest)
+   * "css"   — 2 HTTP requests, most robust against DOM changes
+   * "regex" — 2 HTTP requests, no DOM parser, resilient fallback
+   */
+  strategyOrder: ["css", "rss", "regex"] as const,
 } as const;

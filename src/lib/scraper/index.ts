@@ -1,5 +1,6 @@
 import type { Sign } from "@/lib/signs";
 import { SIGN_SLUGS } from "@/lib/signs";
+import { GORAFI_CONFIG } from "@/lib/gorafi.config";
 import { scrapeAllWithCSS } from "./css";
 import { scrapeAllWithRSS } from "./rss";
 import { scrapeAllWithRegex } from "./regex";
@@ -9,6 +10,7 @@ export type StrategyName = "css" | "rss" | "regex";
 export type ScrapeResult = {
   text: string;
   strategy: StrategyName;
+  sourceUrl?: string;
 };
 
 export class ScrapingError extends Error {
@@ -20,14 +22,19 @@ export class ScrapingError extends Error {
 
 type BulkStrategy = {
   name: StrategyName;
-  fn: () => Promise<Partial<Record<Sign, string>>>;
+  fn: () => Promise<{ results: Partial<Record<Sign, string>>; sourceUrl?: string }>;
 };
 
-const STRATEGIES: BulkStrategy[] = [
-  { name: "css", fn: scrapeAllWithCSS },
-  { name: "rss", fn: scrapeAllWithRSS },
-  { name: "regex", fn: scrapeAllWithRegex },
-];
+const ALL_STRATEGIES: Record<StrategyName, BulkStrategy["fn"]> = {
+  css: scrapeAllWithCSS,
+  rss: scrapeAllWithRSS,
+  regex: scrapeAllWithRegex,
+};
+
+const STRATEGIES: BulkStrategy[] = GORAFI_CONFIG.strategyOrder.map((name) => ({
+  name,
+  fn: ALL_STRATEGIES[name],
+}));
 
 /**
  * Scrape all 12 signs using the first strategy that returns a usable result set.
@@ -37,13 +44,13 @@ const STRATEGIES: BulkStrategy[] = [
 export async function scrapeAllHoroscopes(): Promise<Partial<Record<Sign, ScrapeResult>>> {
   for (const { name, fn } of STRATEGIES) {
     try {
-      const results = await fn();
+      const { results, sourceUrl } = await fn();
       const entries = Object.entries(results) as [Sign, string][];
       if (entries.length < 6) continue; // too few signs — try next strategy
 
       const mapped: Partial<Record<Sign, ScrapeResult>> = {};
       for (const [sign, text] of entries) {
-        if (text.trim()) mapped[sign] = { text: text.trim(), strategy: name };
+        if (text.trim()) mapped[sign] = { text: text.trim(), strategy: name, sourceUrl };
       }
       console.log(`[scraper] Strategy "${name}" returned ${entries.length} signs`);
       return mapped;

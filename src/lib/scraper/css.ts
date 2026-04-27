@@ -15,14 +15,14 @@ import { GORAFI_CONFIG } from "@/lib/gorafi.config";
  *     <p><strong>Bélier : </strong>prediction text…</p>
  *   </div>
  */
-export async function scrapeAllWithCSS(): Promise<Partial<Record<Sign, string>>> {
+export async function scrapeAllWithCSS(): Promise<{ results: Partial<Record<Sign, string>>; sourceUrl?: string }> {
   const articleUrl = await findLatestArticleUrl();
-  if (!articleUrl) return {};
+  if (!articleUrl) return { results: {} };
 
   const html = await fetchPage(articleUrl);
-  if (!html) return {};
+  if (!html) return { results: {} };
 
-  return extractSignsFromArticle(html);
+  return { results: extractSignsFromArticle(html), sourceUrl: articleUrl };
 }
 
 export function extractSignsFromArticle(html: string): Partial<Record<Sign, string>> {

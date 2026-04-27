@@ -12,18 +12,18 @@ Horoscope scraper from Le Gorafi, served via a Next.js API, displayed in a Disco
 
 ## What this project is
 
-- **API**: scrapes Le Gorafi horoscopes (12 zodiac signs), caches results by week in Vercel KV, serves each sign on a dedicated route.
+- **API**: scrapes Le Gorafi horoscopes (13 signs including Furet), caches results by week in Vercel KV, serves each sign on a dedicated route. Also resolves pseudos to their associated sign.
 - **Discord**: slash-command bot using Discord Interactions webhooks (serverless-compatible, no persistent gateway connection).
-- **Frontend**: Next.js web app with GitHub OAuth (NextAuth) to display horoscopes and link a GitHub account to a zodiac sign.
+- **Frontend**: Next.js web app with GitHub OAuth (NextAuth) to display horoscopes and manage pseudo↔sign associations.
 
 Deployed on Vercel free tier.
 
 ## Stack
 
 - **Next.js 15** — App Router, TypeScript strict, API routes as Route Handlers
-- **Vercel KV** (Upstash Redis) — weekly horoscope cache + user↔sign associations
+- **Vercel KV** (Upstash Redis) — weekly horoscope cache + user↔sign associations + pseudo index
 - **NextAuth v5** — GitHub OAuth session management
-- **cheerio** — HTML scraping (strategy 1)
+- **cheerio** — HTML scraping (strategies 1 & 2)
 - **Vitest** + `@testing-library/react` — unit and component tests
 - **Playwright** — e2e tests
 - **Prettier** — formatting
@@ -35,27 +35,33 @@ Deployed on Vercel free tier.
 ```
 src/
 ├── app/
-│   ├── page.tsx                        # Home — grid of 12 signs
-│   ├── [sign]/page.tsx                 # Single sign page
-│   ├── profile/page.tsx                # Link GitHub account to a sign
+│   ├── page.tsx                        # Home — grid of 13 signs with pseudo count + copy button
+│   ├── [sign]/page.tsx                 # Single sign page with pseudo manager
+│   ├── pseudos/page.tsx                # Alphabetical grid of all pseudos
 │   └── api/
-│       ├── horoscope/[sign]/route.ts   # GET → scrape + KV cache
-│       ├── horoscopes/route.ts         # GET → all 12 signs at once
+│       ├── horoscope/[sign]/route.ts   # GET → by sign slug OR pseudo name
+│       ├── horoscopes/route.ts         # GET → all 13 signs at once
 │       ├── discord/route.ts            # POST → Discord interactions
+│       ├── user/pseudos/[sign]/route.ts # GET/POST/DELETE → pseudo management per sign
+│       ├── user/pseudos/route.ts       # GET → all pseudos across all signs
 │       ├── user/sign/route.ts          # GET/POST → user↔sign association
 │       └── auth/[...nextauth]/route.ts
 ├── lib/
 │   ├── scraper/
-│   │   ├── index.ts       # orchestrates strategies with fallback
-│   │   ├── css.ts         # strategy 1: cheerio CSS selectors
-│   │   ├── rss.ts         # strategy 2: RSS/Atom feed
-│   │   └── regex.ts       # strategy 3: regex on raw HTML
-│   ├── cache.ts           # Vercel KV helpers (key schema, TTL, stale fallback)
+│   │   ├── index.ts       # orchestrates strategies with fallback (order from gorafi.config.ts)
+│   │   ├── css.ts         # strategy: cheerio CSS selectors
+│   │   ├── rss.ts         # strategy: RSS/Atom feed
+│   │   └── regex.ts       # strategy: regex on raw HTML
+│   ├── cache.ts           # Vercel KV helpers (key schema, TTL, stale fallback, pseudo index)
 │   ├── discord.ts         # Ed25519 signature verification + command dispatch
-│   ├── auth.ts            # NextAuth config (GitHub provider)
+│   ├── auth.ts            # NextAuth config (GitHub provider, ALLOWED_GITHUB_LOGIN)
+│   ├── gorafi.config.ts   # scraping URLs, selectors, and strategy order
 │   └── signs.ts           # SIGNS array + slug helpers
 ├── components/
-│   ├── HoroscopeCard.tsx
+│   ├── HoroscopeCard.tsx  # card with Link body + footer (source link + copy button)
+│   ├── CopyButton.tsx     # client component — clipboard copy with 2s feedback
+│   ├── PseudoManager.tsx  # client component — add/delete pseudos on sign page
+│   ├── PseudoGrid.tsx     # client component — alphabetical grid with trash+confirm
 │   └── SignPicker.tsx
 └── styles/
     └── theme.css          # CSS custom properties — all colors live here
@@ -73,20 +79,53 @@ Le Furet est le 13e signe bonus du Gorafi — présent occasionnellement dans le
 
 ## KV key schema
 
-| Key                              | Value                                           |
-| -------------------------------- | ----------------------------------------------- |
-| `horoscope:{year}:{week}:{sign}` | `{ text, fetchedAt, strategy }`                 |
-| `horoscope:stale:{sign}`         | last known good `{ text, fetchedAt, strategy }` |
-| `user:{githubId}:sign`           | `"scorpion"`                                    |
+| Key                              | Value                                                    |
+| -------------------------------- | -------------------------------------------------------- |
+| `horoscope:{year}:{week}:{sign}` | `{ text, fetchedAt, strategy, sourceUrl }`               |
+| `horoscope:stale:{sign}`         | last known good `{ text, fetchedAt, strategy, sourceUrl }` |
+| `user:{githubId}:sign`           | `"scorpion"`                                             |
+| `user:{githubId}:pseudos:{sign}` | `["pseudo1", "pseudo2"]`                                 |
+| `pseudo:{lowercase}`             | `{ sign, userId }` — global reverse index                |
 
-## Scraper strategies (ordered, with fallback)
+## Pseudos
 
-1. **CSS** (`src/lib/scraper/css.ts`) — cheerio + DOM selectors on the Gorafi horoscope page.
-2. **RSS** (`src/lib/scraper/rss.ts`) — parse the Gorafi RSS/Atom feed (WordPress `/feed/?cat=horoscope` or similar).
-3. **Regex** (`src/lib/scraper/regex.ts`) — pattern matching on raw HTML, does not depend on DOM structure.
-4. **Stale cache** (handled in `src/lib/cache.ts`) — return the last known good value with `stale: true` if all strategies fail.
+Users associate game pseudos with zodiac signs. Constraints:
+- A pseudo can belong to only one sign (system-wide). Adding a pseudo to a new sign removes it from the previous one; the API returns `movedFrom` so the UI can notify the user.
+- Pseudo uniqueness is case-insensitive (`localeCompare` with `sensitivity: "base"`).
+- Sign slugs are forbidden as pseudo names to avoid route collisions.
+- The global reverse index (`pseudo:{lowercase}`) allows `GET /api/horoscope/[identifier]` to resolve a pseudo to its sign without scanning all users.
 
-`scrapeHoroscope(sign)` tries each strategy in order, logs which strategy succeeded (`strategy` field in the cached result), and throws `ScrapingError` only if all three fail (after which the caller falls back to stale KV).
+## Scraper strategies
+
+Strategy order is configured in `src/lib/gorafi.config.ts` (`strategyOrder`). The first strategy that returns ≥ 6 signs wins; falls through to the next on failure or insufficient results.
+
+| Strategy | HTTP requests | Notes |
+| -------- | ------------- | ----- |
+| **css**  | 2 — category page + article | most robust |
+| **rss**  | 1 when inline content complete, else 2 | cheapest |
+| **regex**| 2 — category page + article | no DOM parser |
+
+Current order: `["css", "rss", "regex"]`. To change it, edit `strategyOrder` in `gorafi.config.ts`.
+
+Each strategy returns `{ results, sourceUrl }`. The `sourceUrl` (specific article URL) is stored in the cache and exposed in the API response and on the home page cards.
+
+After all strategies fail, the caller falls back to stale KV (returned with `stale: true`).
+
+All pure parsing functions (`extractSignsFromArticle`, `extractSignsWithRegex`, `extractLatestArticleUrl`, `extractFromRssInlineContent`) are exported and covered by unit tests in `tests/unit/scraper-strategies.test.ts`.
+
+## API routes
+
+| Route | Method | Description |
+| ----- | ------ | ----------- |
+| `/api/horoscope/[identifier]` | GET | Returns horoscope; `identifier` can be a sign slug **or** a pseudo name |
+| `/api/horoscopes` | GET | All 13 signs at once |
+| `/api/user/pseudos/[sign]` | GET | List pseudos for a sign |
+| `/api/user/pseudos/[sign]` | POST | Add pseudo to sign (moves if already on another sign) |
+| `/api/user/pseudos/[sign]` | DELETE | Remove pseudo from sign |
+| `/api/user/pseudos` | GET | All pseudos across all signs, sorted alphabetically |
+| `/api/discord` | POST | Discord Interactions webhook |
+| `/api/user/sign` | GET/POST | User↔sign association |
+| `/api/auth/[...nextauth]` | — | NextAuth handlers |
 
 ## Discord
 
@@ -96,12 +135,15 @@ Register the `/horoscope <signe>` command once via the Discord REST API (a one-o
 
 ## Authentication
 
-GitHub OAuth via NextAuth v5. Required env vars:
+GitHub OAuth via NextAuth v5. Only the login specified in `ALLOWED_GITHUB_LOGIN` can sign in.
+
+Required env vars:
 
 ```
 AUTH_SECRET=              # random 32-char secret
 AUTH_GITHUB_ID=           # GitHub OAuth App client ID
 AUTH_GITHUB_SECRET=       # GitHub OAuth App client secret
+ALLOWED_GITHUB_LOGIN=     # GitHub username allowed to sign in
 KV_URL=                   # Vercel KV connection string
 KV_REST_API_URL=
 KV_REST_API_TOKEN=
@@ -110,18 +152,20 @@ DISCORD_APPLICATION_ID=
 DISCORD_BOT_TOKEN=        # for registering commands
 ```
 
+When KV env vars are absent (local dev), `cache.ts` falls back to an in-memory `Map` on `global._localStore` that survives Next.js HMR.
+
 ## Current status (as of 2026-04-27)
 
 All three phases are functionally complete. The codebase compiles and the unit test suite passes.
 
 ### Done
-- **Scraper** — 3 strategies (CSS, RSS, regex) with fallback orchestrator; `scrapeAllHoroscopes()` bulk-fetches all signs in one HTTP round-trip.
-- **KV cache** — weekly key + stale fallback; all reads/writes go through `src/lib/cache.ts`.
-- **API routes** — `/api/horoscope/[sign]`, `/api/horoscopes`, `/api/discord`, `/api/user/sign`, `/api/auth/[...nextauth]`.
+- **Scraper** — 3 strategies (CSS, RSS, regex) with fallback orchestrator; strategy order in `gorafi.config.ts`; `sourceUrl` (article URL) threaded through scraper → cache → API → UI.
+- **KV cache** — weekly key + stale fallback + global pseudo reverse index; all reads/writes go through `src/lib/cache.ts`; in-memory fallback for local dev.
+- **API routes** — `/api/horoscope/[identifier]` resolves both sign slugs and pseudos; full pseudo CRUD; Discord; auth.
 - **Discord** — Ed25519 verification + command dispatch; `/api/discord` handles PING and `APPLICATION_COMMAND`.
-- **Auth** — NextAuth v5 GitHub OAuth; `session.user.id` exposed for KV lookups.
-- **Frontend** — Home grid, sign detail page, profile/sign-picker page; layout with session-aware nav.
-- **Unit tests** — `tests/unit/`: scraper strategies, orchestrator, cache, discord sig, signs.
+- **Auth** — NextAuth v5 GitHub OAuth; single allowed login via `ALLOWED_GITHUB_LOGIN` env var.
+- **Frontend** — Home grid (wider cards, 5-line preview, pseudo count badge, copy button, source link); sign detail page with pseudo manager; `/pseudos` page (alphabetical grid, trash+confirm); session-aware nav.
+- **Unit tests** — `tests/unit/`: all three scraper strategy parsing functions, orchestrator, cache, discord sig, signs (37 tests).
 
 ### Still missing
 - `scripts/register-discord-command.ts` — one-off script to register `/horoscope <signe>` via the Discord REST API. Needs `DISCORD_APPLICATION_ID` + `DISCORD_BOT_TOKEN`.
@@ -131,7 +175,6 @@ All three phases are functionally complete. The codebase compiles and the unit t
 
 ### Notes
 - Tailwind CSS is installed (came with create-next-app) but **not used** — all styling uses inline styles + CSS custom properties from `src/styles/theme.css`. Do not add Tailwind classes.
-- The profile page (`/profile`) silently does nothing when the user is not logged in (the API returns 401, the page swallows it). It does not redirect to `/api/auth/signin` yet.
 
 ## Coding rules
 
@@ -139,7 +182,7 @@ All three phases are functionally complete. The codebase compiles and the unit t
 - **Code and comments in English.** UI copy can be in French since the product is French.
 - **Theme values in `src/styles/theme.css`** as CSS custom properties. Never hardcode colors in components — always `var(--token)`.
 - **No speculative abstractions.** Don't add helpers, fallbacks or features that aren't required by the current task.
-- **All scraper strategies must be independently testable** (pure functions accepting a `sign` parameter, returning `string | null`).
+- **All scraper strategy parsing functions must be exported and independently testable** (pure functions, no network calls).
 - **No network calls in unit tests** — mock at the strategy boundary.
 - **KV reads/writes via `src/lib/cache.ts`** — never call `@vercel/kv` directly in route handlers.
 - **Run `make check` before committing.**

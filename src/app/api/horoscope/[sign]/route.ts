@@ -1,17 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isValidSign } from "@/lib/signs";
-import { getCachedHoroscope, setCachedHoroscope } from "@/lib/cache";
+import type { Sign } from "@/lib/signs";
+import { getCachedHoroscope, setCachedHoroscope, getPseudoSign } from "@/lib/cache";
 import { scrapeAllHoroscopes, ScrapingError } from "@/lib/scraper";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ sign: string }> }) {
-  const { sign } = await params;
+  const { sign: param } = await params;
 
-  if (!isValidSign(sign)) {
-    return NextResponse.json({ error: "Signe inconnu." }, { status: 404 });
+  let sign: Sign;
+  if (isValidSign(param)) {
+    sign = param;
+  } else {
+    const entry = await getPseudoSign(param);
+    if (!entry) return NextResponse.json({ error: "Signe inconnu." }, { status: 404 });
+    sign = entry.sign;
   }
 
   const cached = await getCachedHoroscope(sign);
-  if (cached) return NextResponse.json(cached);
+  if (cached) return NextResponse.json({ ...cached, sign });
 
   // Cache miss — fetch all signs at once and warm the full cache
   try {
@@ -28,7 +34,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ sig
     const result = all[sign];
     if (!result) throw new ScrapingError(sign);
 
-    return NextResponse.json({ ...result, fetchedAt: now });
+    return NextResponse.json({ ...result, fetchedAt: now, sign });
   } catch (err) {
     if (err instanceof ScrapingError) {
       return NextResponse.json(

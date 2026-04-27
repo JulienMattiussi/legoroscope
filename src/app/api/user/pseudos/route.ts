@@ -9,11 +9,12 @@ export type PseudoEntry = { pseudo: string; sign: Sign };
 export async function GET() {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Non authentifié." }, { status: 401 });
+  const userId = session.user.id;
 
   const entries: PseudoEntry[] = [];
   await Promise.all(
     SIGN_SLUGS.map(async (sign) => {
-      const pseudos = await getUserPseudos(session.user.id, sign);
+      const pseudos = await getUserPseudos(userId, sign);
       for (const pseudo of pseudos) entries.push({ pseudo, sign });
     }),
   );

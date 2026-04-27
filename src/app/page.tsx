@@ -2,6 +2,7 @@ import { SIGNS, SIGN_SLUGS } from "@/lib/signs";
 import { HoroscopeCard } from "@/components/HoroscopeCard";
 import { auth } from "@/lib/auth";
 import { getUserPseudos } from "@/lib/cache";
+import { GORAFI_CONFIG } from "@/lib/gorafi.config";
 import { headers } from "next/headers";
 import Link from "next/link";
 import Image from "next/image";
@@ -62,13 +63,19 @@ export default async function HomePage() {
   const payload: Array<{ sign: Sign } & (CachedHoroscope | { text: null; error: true })> =
     res.ok ? await res.json() : SIGNS.map((s) => ({ sign: s.slug, text: null, error: true }));
 
+  const userId = session.user!.id!;
   const pseudoCounts: Partial<Record<Sign, number>> = {};
   await Promise.all(
     SIGN_SLUGS.map(async (sign) => {
-      const pseudos = await getUserPseudos(session.user.id, sign);
+      const pseudos = await getUserPseudos(userId, sign);
       if (pseudos.length > 0) pseudoCounts[sign] = pseudos.length;
     }),
   );
+
+  const sourceUrl =
+    payload.find((item): item is typeof item & { sourceUrl: string } =>
+      "sourceUrl" in item && typeof item.sourceUrl === "string",
+    )?.sourceUrl ?? GORAFI_CONFIG.categoryUrl;
 
   const toCard = (item: (typeof payload)[number]) => ({
     sign: item.sign,
@@ -97,7 +104,10 @@ export default async function HomePage() {
         Legoroscope
       </h1>
       <p style={{ color: "var(--text-muted)", marginBottom: "2rem" }}>
-        L&apos;horoscope de la semaine selon Le Gorafi.
+        L&apos;horoscope de la semaine{" "}
+        <a href={sourceUrl} target="_blank" rel="noopener noreferrer" className="source-link">
+          selon Le Gorafi
+        </a>.
       </p>
       <div
         style={{

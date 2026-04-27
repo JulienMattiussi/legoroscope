@@ -23,49 +23,52 @@ const ALL_SIGNS_RESULT = {
 
 beforeEach(() => vi.clearAllMocks());
 
+const wrap = (results: typeof ALL_SIGNS_RESULT | Partial<typeof ALL_SIGNS_RESULT>, sourceUrl?: string) => ({ results, sourceUrl });
+
 describe("scrapeAllHoroscopes", () => {
   it("returns all signs when CSS strategy succeeds", async () => {
-    mockCSS.mockResolvedValue(ALL_SIGNS_RESULT);
+    mockCSS.mockResolvedValue(wrap(ALL_SIGNS_RESULT, "https://example.com/article"));
     const results = await scrapeAllHoroscopes();
     expect(Object.keys(results)).toHaveLength(13);
     expect(results.lion?.strategy).toBe("css");
+    expect(results.lion?.sourceUrl).toBe("https://example.com/article");
     expect(mockRSS).not.toHaveBeenCalled();
   });
 
   it("falls back to RSS when CSS returns fewer than 6 signs", async () => {
-    mockCSS.mockResolvedValue({ lion: "Texte." });
-    mockRSS.mockResolvedValue(ALL_SIGNS_RESULT);
+    mockCSS.mockResolvedValue(wrap({ lion: "Texte." }));
+    mockRSS.mockResolvedValue(wrap(ALL_SIGNS_RESULT));
     const results = await scrapeAllHoroscopes();
     expect(results.lion?.strategy).toBe("rss");
     expect(mockRegex).not.toHaveBeenCalled();
   });
 
   it("falls back to regex when CSS and RSS both return too few signs", async () => {
-    mockCSS.mockResolvedValue({});
-    mockRSS.mockResolvedValue({ scorpion: "Texte." });
-    mockRegex.mockResolvedValue(ALL_SIGNS_RESULT);
+    mockCSS.mockResolvedValue(wrap({}));
+    mockRSS.mockResolvedValue(wrap({ scorpion: "Texte." }));
+    mockRegex.mockResolvedValue(wrap(ALL_SIGNS_RESULT));
     const results = await scrapeAllHoroscopes();
     expect(results.scorpion?.strategy).toBe("regex");
   });
 
   it("falls back to next strategy when a strategy throws", async () => {
     mockCSS.mockRejectedValue(new Error("Network error"));
-    mockRSS.mockResolvedValue(ALL_SIGNS_RESULT);
+    mockRSS.mockResolvedValue(wrap(ALL_SIGNS_RESULT));
     const results = await scrapeAllHoroscopes();
     expect(results.lion?.strategy).toBe("rss");
   });
 
   it("returns empty object when all strategies fail", async () => {
-    mockCSS.mockResolvedValue({});
-    mockRSS.mockResolvedValue({});
-    mockRegex.mockResolvedValue({});
+    mockCSS.mockResolvedValue(wrap({}));
+    mockRSS.mockResolvedValue(wrap({}));
+    mockRegex.mockResolvedValue(wrap({}));
     const results = await scrapeAllHoroscopes();
     expect(Object.keys(results)).toHaveLength(0);
   });
 
   it("trims whitespace from results", async () => {
-    mockCSS.mockResolvedValue({ lion: "  Texte avec espaces.  " });
-    mockRSS.mockResolvedValue(ALL_SIGNS_RESULT); // CSS only has 1 sign, falls back to RSS
+    mockCSS.mockResolvedValue(wrap({ lion: "  Texte avec espaces.  " }));
+    mockRSS.mockResolvedValue(wrap(ALL_SIGNS_RESULT)); // CSS only has 1 sign, falls back to RSS
     const results = await scrapeAllHoroscopes();
     // RSS had the full set so it wins
     expect(results.lion?.text).toBe("Les astres.");
@@ -74,16 +77,16 @@ describe("scrapeAllHoroscopes", () => {
 
 describe("scrapeHoroscope (single sign)", () => {
   it("returns result for the requested sign", async () => {
-    mockCSS.mockResolvedValue(ALL_SIGNS_RESULT);
+    mockCSS.mockResolvedValue(wrap(ALL_SIGNS_RESULT));
     const result = await scrapeHoroscope("lion");
     expect(result.text).toBe("Les astres.");
     expect(result.strategy).toBe("css");
   });
 
   it("throws ScrapingError when the sign is missing from all strategy results", async () => {
-    mockCSS.mockResolvedValue({});
-    mockRSS.mockResolvedValue({});
-    mockRegex.mockResolvedValue({});
+    mockCSS.mockResolvedValue(wrap({}));
+    mockRSS.mockResolvedValue(wrap({}));
+    mockRegex.mockResolvedValue(wrap({}));
     await expect(scrapeHoroscope("lion")).rejects.toThrow(ScrapingError);
   });
 });
