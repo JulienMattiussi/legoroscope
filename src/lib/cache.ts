@@ -2,13 +2,30 @@ import { Redis } from "@upstash/redis";
 import type { Sign } from "@/lib/signs";
 import type { StrategyName } from "@/lib/scraper";
 
-const isKvAvailable = () =>
-  !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+// Vercel Storage injects REDIS_URL (rediss://default:{token}@{host}:port).
+// Derive the REST URL and token from it when the explicit REST vars are absent.
+function buildRedisArgs(): { url: string; token: string } {
+  if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+    return { url: process.env.UPSTASH_REDIS_REST_URL, token: process.env.UPSTASH_REDIS_REST_TOKEN };
+  }
+  if (process.env.REDIS_URL) {
+    try {
+      const u = new URL(process.env.REDIS_URL);
+      return { url: `https://${u.hostname}`, token: u.password };
+    } catch {
+      // malformed URL — fall through to empty args
+    }
+  }
+  return { url: "", token: "" };
+}
 
-const kv = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL ?? "",
-  token: process.env.UPSTASH_REDIS_REST_TOKEN ?? "",
-});
+const isKvAvailable = () =>
+  !!(
+    (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) ||
+    process.env.REDIS_URL
+  );
+
+const kv = new Redis(buildRedisArgs());
 
 // In-memory fallback for local dev. Attached to global to survive Next.js HMR.
 const g = global as typeof global & { _localStore?: Map<string, unknown> };
