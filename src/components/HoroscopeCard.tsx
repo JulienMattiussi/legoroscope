@@ -22,6 +22,7 @@ export function HoroscopeCard({ sign, data, pseudoCount = 0 }: Props) {
         boxShadow: "var(--shadow)",
         display: "flex",
         flexDirection: "column",
+        height: "100%",
       }}
     >
       <Link
