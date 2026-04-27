@@ -60,11 +60,21 @@ describe("PseudoGrid — export", () => {
 });
 
 describe("PseudoGrid — import", () => {
-  it("imports valid entries and shows success message", async () => {
+  it("calls the bulk endpoint with valid entries", async () => {
+    vi.mocked(fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ imported: 2, message: "2 pseudos importés." }),
+    } as Response);
+
     render(<PseudoGrid initialEntries={[]} />);
     triggerFileInput(makeFileWithText(ENTRIES));
 
     await screen.findByText("2 pseudos importés.");
+    const calls = vi.mocked(fetch as ReturnType<typeof vi.fn>).mock.calls;
+    const bulk = calls.find((c) => (c[1] as RequestInit)?.method === "POST");
+    expect(bulk?.[0]).toBe("/api/user/pseudos");
+    const body = JSON.parse((bulk?.[1] as RequestInit).body as string) as { entries: unknown[] };
+    expect(body.entries).toHaveLength(2);
   });
 
   it("shows error for invalid JSON", async () => {
@@ -81,15 +91,24 @@ describe("PseudoGrid — import", () => {
     await screen.findByText("Format invalide : tableau attendu.");
   });
 
-  it("filters out entries with unknown signs", async () => {
+  it("filters out entries with unknown signs before sending", async () => {
     const mixed = [
       { pseudo: "michel", sign: "cancer" },
       { pseudo: "invalid", sign: "xyz" },
     ];
+    vi.mocked(fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ imported: 1, message: "1 pseudo importé." }),
+    } as Response);
+
     render(<PseudoGrid initialEntries={[]} />);
     triggerFileInput(makeFileWithText(mixed));
 
     await screen.findByText("1 pseudo importé.");
+    const calls = vi.mocked(fetch as ReturnType<typeof vi.fn>).mock.calls;
+    const bulk = calls.find((c) => (c[1] as RequestInit)?.method === "POST");
+    const body = JSON.parse((bulk?.[1] as RequestInit).body as string) as { entries: unknown[] };
+    expect(body.entries).toHaveLength(1);
   });
 
   it("shows error when no valid entry is found", async () => {
@@ -102,12 +121,14 @@ describe("PseudoGrid — import", () => {
   it("reloads the list after import", async () => {
     const updated: PseudoEntry[] = [...ENTRIES, { pseudo: "sarah", sign: "verseau" }];
     vi.mocked(fetch as ReturnType<typeof vi.fn>)
-      .mockResolvedValueOnce({ ok: true } as Response)
-      .mockResolvedValueOnce({ ok: true } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ imported: 2, message: "2 pseudos importés." }),
+      } as Response) // POST bulk
       .mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({ pseudos: updated }),
-      } as Response);
+      } as Response); // GET reload
 
     render(<PseudoGrid initialEntries={[]} />);
     triggerFileInput(makeFileWithText(ENTRIES));

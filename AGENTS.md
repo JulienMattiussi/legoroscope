@@ -113,16 +113,17 @@ All pure parsing functions (`extractSignsFromArticle`, `extractSignsWithRegex`, 
 
 ## API routes
 
-| Route                         | Method | Description                                                             |
-| ----------------------------- | ------ | ----------------------------------------------------------------------- |
-| `/api/horoscope/[identifier]` | GET    | Returns horoscope; `identifier` can be a sign slug **or** a pseudo name |
-| `/api/horoscopes`             | GET    | All 13 signs at once                                                    |
-| `/api/user/pseudos/[sign]`    | GET    | List pseudos for a sign                                                 |
-| `/api/user/pseudos/[sign]`    | POST   | Add pseudo to sign (moves if already on another sign)                   |
-| `/api/user/pseudos/[sign]`    | DELETE | Remove pseudo from sign                                                 |
-| `/api/user/pseudos`           | GET    | All pseudos across all signs, sorted alphabetically                     |
-| `/api/discord`                | POST   | Discord Interactions webhook                                            |
-| `/api/auth/[...nextauth]`     | —      | NextAuth handlers                                                       |
+| Route                         | Method | Description                                                                  |
+| ----------------------------- | ------ | ---------------------------------------------------------------------------- |
+| `/api/horoscope/[identifier]` | GET    | Returns horoscope; `identifier` can be a sign slug **or** a pseudo name      |
+| `/api/horoscopes`             | GET    | All 13 signs at once                                                         |
+| `/api/user/pseudos/[sign]`    | GET    | List pseudos for a sign                                                      |
+| `/api/user/pseudos/[sign]`    | POST   | Add pseudo to sign (moves if already on another sign)                        |
+| `/api/user/pseudos/[sign]`    | DELETE | Remove pseudo from sign                                                      |
+| `/api/user/pseudos`           | GET    | All pseudos across all signs, sorted alphabetically                          |
+| `/api/user/pseudos`           | POST   | Bulk import: `{ entries: [{pseudo, sign}] }` → adds all, sequential per sign |
+| `/api/discord`                | POST   | Discord Interactions webhook                                                 |
+| `/api/auth/[...nextauth]`     | —      | NextAuth handlers                                                            |
 
 ## Discord
 

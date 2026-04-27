@@ -78,18 +78,13 @@ export function PseudoGrid({ initialEntries }: { initialEntries: PseudoEntry[] }
 
     setImportStatus(`Importation de ${valid.length} pseudo${valid.length > 1 ? "s" : ""}…`);
 
-    const results = await Promise.allSettled(
-      valid.map(({ pseudo, sign }) =>
-        fetch(`/api/user/pseudos/${sign}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ pseudo }),
-        }),
-      ),
-    );
-
-    const ok = results.filter((r) => r.status === "fulfilled" && r.value.ok).length;
-    setImportStatus(`${ok} pseudo${ok > 1 ? "s" : ""} importé${ok > 1 ? "s" : ""}.`);
+    const bulkRes = await fetch("/api/user/pseudos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ entries: valid }),
+    });
+    const { message } = (await bulkRes.json()) as { imported: number; message: string };
+    setImportStatus(message);
 
     // Reload full list from API to reflect moved pseudos
     const res = await fetch("/api/user/pseudos");
