@@ -14,7 +14,7 @@ async function blobGet<T>(key: string): Promise<T | null> {
 
 async function blobSet(key: string, value: unknown): Promise<void> {
   await put(key, JSON.stringify(value), {
-    access: "public",
+    access: "private",
     contentType: "application/json",
     addRandomSuffix: false,
     allowOverwrite: true,

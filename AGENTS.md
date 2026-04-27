@@ -21,7 +21,7 @@ Deployed on Vercel free tier.
 ## Stack
 
 - **Next.js 15** — App Router, TypeScript strict, API routes as Route Handlers
-- **Vercel KV** (`@vercel/kv`) — weekly horoscope cache + user pseudo associations + pseudo index; credentials injected automatically by Vercel at runtime (not visible in the env vars UI)
+- **Vercel Blob** (`@vercel/blob`) — weekly horoscope cache + user pseudo associations + pseudo index; `BLOB_READ_WRITE_TOKEN` auto-injected by Vercel at runtime
 - **NextAuth v5** — GitHub OAuth session management
 - **cheerio** — HTML scraping (CSS and RSS strategies)
 - **Vitest** + `@testing-library/react` — unit and component tests
@@ -142,18 +142,17 @@ AUTH_SECRET=              # random 32-char secret
 AUTH_GITHUB_ID=           # GitHub OAuth App client ID
 AUTH_GITHUB_SECRET=       # GitHub OAuth App client secret
 ALLOWED_GITHUB_LOGIN=     # GitHub username allowed to sign in
-KV_REST_API_URL=          # injected automatically by Vercel KV at runtime; add to .env.local for local dev
-KV_REST_API_TOKEN=        # idem
+BLOB_READ_WRITE_TOKEN=    # auto-injected by Vercel Blob at runtime; add to .env.local for local dev
 DISCORD_PUBLIC_KEY=       # for Ed25519 signature verification
 DISCORD_APPLICATION_ID=
 DISCORD_BOT_TOKEN=        # for registering commands
 ```
 
-When KV env vars are absent (local dev), `cache.ts` falls back to an in-memory `Map` on `global._localStore` that survives Next.js HMR.
+When `BLOB_READ_WRITE_TOKEN` is absent (local dev), `cache.ts` falls back to an in-memory `Map` on `global._localStore` that survives Next.js HMR.
 
 ## Current status (as of 2026-04-27)
 
-The codebase is functionally complete. All checks and unit tests pass (37 tests).
+The codebase is functionally complete. All checks and unit tests pass (62 tests).
 
 ### Done
 

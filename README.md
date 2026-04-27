@@ -4,7 +4,7 @@ Horoscope hebdomadaire du [Gorafi](https://www.legorafi.fr/category/horoscope/),
 
 ## Fonctionnalités
 
-- **Scraping** — 3 stratégies (CSS, RSS, regex) avec fallback automatique ; cache hebdomadaire dans Vercel KV ; fallback sur la dernière valeur connue si tout échoue.
+- **Scraping** — 3 stratégies (CSS, RSS, regex) avec fallback automatique ; cache hebdomadaire dans Vercel Blob ; fallback sur la dernière valeur connue si tout échoue.
 - **API REST** — un endpoint par signe, un endpoint global pour tous les signes, résolution de pseudos (un pseudo mappé à un signe → retourne l'horoscope du signe).
 - **Bot Discord** — commande slash `/horoscope` via webhook Interactions (sans gateway persistant) ; jusqu'à 5 signes ou pseudos en une seule commande ; autocomplete ; fonctionne en DM et hors serveur (User Install).
 - **Web** — grille des 13 signes avec compte de pseudos, page de détail, page `/pseudos` alphabétique avec export/import JSON, connexion GitHub OAuth.
@@ -12,7 +12,7 @@ Horoscope hebdomadaire du [Gorafi](https://www.legorafi.fr/category/horoscope/),
 ## Stack
 
 - **Next.js 15** — App Router, TypeScript strict
-- **Vercel KV** (`@vercel/kv`) — cache hebdomadaire + index global pseudo→signe
+- **Vercel Blob** (`@vercel/blob`) — cache hebdomadaire + index global pseudo→signe
 - **NextAuth v5** — GitHub OAuth (accès restreint à un seul compte)
 - **cheerio** — parsing HTML pour la stratégie CSS
 - **tweetnacl** — vérification de signature Ed25519 pour Discord
@@ -33,18 +33,18 @@ make dev       # http://localhost:6677
 
 ## Variables d'environnement
 
-| Variable                                | Description                                                                |
-| --------------------------------------- | -------------------------------------------------------------------------- |
-| `AUTH_SECRET`                           | Secret aléatoire 32 caractères (NextAuth)                                  |
-| `AUTH_GITHUB_ID`                        | Client ID de l'OAuth App GitHub                                            |
-| `AUTH_GITHUB_SECRET`                    | Client Secret de l'OAuth App GitHub                                        |
-| `ALLOWED_GITHUB_LOGIN`                  | Login GitHub autorisé à se connecter                                       |
-| `KV_REST_API_URL` / `KV_REST_API_TOKEN` | Injectés automatiquement par Vercel KV au runtime (pas visibles dans l'UI) |
-| `DISCORD_PUBLIC_KEY`                    | Clé publique Ed25519 de l'application Discord                              |
-| `DISCORD_APPLICATION_ID`                | ID de l'application Discord                                                |
-| `DISCORD_BOT_TOKEN`                     | Token bot Discord (pour enregistrer les commandes)                         |
+| Variable                 | Description                                        |
+| ------------------------ | -------------------------------------------------- |
+| `AUTH_SECRET`            | Secret aléatoire 32 caractères (NextAuth)          |
+| `AUTH_GITHUB_ID`         | Client ID de l'OAuth App GitHub                    |
+| `AUTH_GITHUB_SECRET`     | Client Secret de l'OAuth App GitHub                |
+| `ALLOWED_GITHUB_LOGIN`   | Login GitHub autorisé à se connecter               |
+| `BLOB_READ_WRITE_TOKEN`  | Injecté automatiquement par Vercel Blob au runtime |
+| `DISCORD_PUBLIC_KEY`     | Clé publique Ed25519 de l'application Discord      |
+| `DISCORD_APPLICATION_ID` | ID de l'application Discord                        |
+| `DISCORD_BOT_TOKEN`      | Token bot Discord (pour enregistrer les commandes) |
 
-En développement local, les variables KV peuvent être omises — un store en mémoire (`global._localStore`) est utilisé automatiquement.
+En développement local, `BLOB_READ_WRITE_TOKEN` peut être omis — un store en mémoire (`global._localStore`) est utilisé automatiquement.
 
 ## API
 
@@ -105,7 +105,7 @@ src/
 │   │   ├── css.ts          # Stratégie 1 : sélecteurs CSS cheerio
 │   │   ├── rss.ts          # Stratégie 2 : flux RSS/Atom
 │   │   └── regex.ts        # Stratégie 3 : regex sur HTML brut
-│   ├── cache.ts            # Helpers Vercel KV (schéma de clés, TTL, stale fallback, index pseudos)
+│   ├── cache.ts            # Helpers Vercel Blob (schéma de clés, stale fallback, index pseudos)
 │   ├── discord.ts          # Vérification signature Ed25519 + dispatch commandes
 │   ├── auth.ts             # Config NextAuth (GitHub provider, ALLOWED_GITHUB_LOGIN)
 │   ├── gorafi.config.ts    # URLs, sélecteurs et ordre des stratégies
