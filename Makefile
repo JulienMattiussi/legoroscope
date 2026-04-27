@@ -61,6 +61,11 @@ test-e2e: ## Run e2e tests with Playwright
 test-e2e-ui: ## Run e2e tests with Playwright UI
 	npm run test:e2e:ui
 
+# Discord
+
+discord-register: ## Register the /horoscope slash command with Discord (run once)
+	npx tsx scripts/register-discord-command.ts
+
 # Maintenance
 
 clean: ## Remove build artefacts

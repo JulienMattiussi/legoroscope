@@ -33,32 +33,32 @@ make dev       # http://localhost:6677
 
 ## Variables d'environnement
 
-| Variable               | Description                                          |
-| ---------------------- | ---------------------------------------------------- |
-| `AUTH_SECRET`          | Secret aléatoire 32 caractères (NextAuth)            |
-| `AUTH_GITHUB_ID`       | Client ID de l'OAuth App GitHub                      |
-| `AUTH_GITHUB_SECRET`   | Client Secret de l'OAuth App GitHub                  |
-| `ALLOWED_GITHUB_LOGIN` | Login GitHub autorisé à se connecter                 |
-| `KV_URL`               | URL de connexion Vercel KV                           |
-| `KV_REST_API_URL`      | URL REST Vercel KV                                   |
-| `KV_REST_API_TOKEN`    | Token REST Vercel KV                                 |
-| `DISCORD_PUBLIC_KEY`   | Clé publique Ed25519 de l'application Discord        |
+| Variable                 | Description                                        |
+| ------------------------ | -------------------------------------------------- |
+| `AUTH_SECRET`            | Secret aléatoire 32 caractères (NextAuth)          |
+| `AUTH_GITHUB_ID`         | Client ID de l'OAuth App GitHub                    |
+| `AUTH_GITHUB_SECRET`     | Client Secret de l'OAuth App GitHub                |
+| `ALLOWED_GITHUB_LOGIN`   | Login GitHub autorisé à se connecter               |
+| `KV_URL`                 | URL de connexion Vercel KV                         |
+| `KV_REST_API_URL`        | URL REST Vercel KV                                 |
+| `KV_REST_API_TOKEN`      | Token REST Vercel KV                               |
+| `DISCORD_PUBLIC_KEY`     | Clé publique Ed25519 de l'application Discord      |
 | `DISCORD_APPLICATION_ID` | ID de l'application Discord                        |
-| `DISCORD_BOT_TOKEN`    | Token bot Discord (pour enregistrer les commandes)   |
+| `DISCORD_BOT_TOKEN`      | Token bot Discord (pour enregistrer les commandes) |
 
 En développement local, les variables KV peuvent être omises — un store en mémoire (`global._localStore`) est utilisé automatiquement.
 
 ## API
 
-| Route                         | Méthode | Description                                                  |
-| ----------------------------- | ------- | ------------------------------------------------------------ |
-| `/api/horoscope/[identifier]` | GET     | Horoscope d'un signe (slug) ou d'un pseudo                   |
-| `/api/horoscopes`             | GET     | Les 13 signes d'un coup                                      |
-| `/api/user/pseudos/[sign]`    | GET     | Pseudos associés à un signe (session requise)                |
-| `/api/user/pseudos/[sign]`    | POST    | Ajouter un pseudo à un signe (déplace si déjà ailleurs)      |
-| `/api/user/pseudos/[sign]`    | DELETE  | Supprimer un pseudo d'un signe                               |
-| `/api/user/pseudos`           | GET     | Tous les pseudos, triés alphabétiquement                     |
-| `/api/discord`                | POST    | Webhook Discord Interactions                                 |
+| Route                         | Méthode | Description                                             |
+| ----------------------------- | ------- | ------------------------------------------------------- |
+| `/api/horoscope/[identifier]` | GET     | Horoscope d'un signe (slug) ou d'un pseudo              |
+| `/api/horoscopes`             | GET     | Les 13 signes d'un coup                                 |
+| `/api/user/pseudos/[sign]`    | GET     | Pseudos associés à un signe (session requise)           |
+| `/api/user/pseudos/[sign]`    | POST    | Ajouter un pseudo à un signe (déplace si déjà ailleurs) |
+| `/api/user/pseudos/[sign]`    | DELETE  | Supprimer un pseudo d'un signe                          |
+| `/api/user/pseudos`           | GET     | Tous les pseudos, triés alphabétiquement                |
+| `/api/discord`                | POST    | Webhook Discord Interactions                            |
 
 ## Signes supportés
 

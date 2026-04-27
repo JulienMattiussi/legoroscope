@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyDiscordSignature, handleInteraction } from "@/lib/discord";
 import { isValidSign, getSign } from "@/lib/signs";
-import { getCachedHoroscope, setCachedHoroscope } from "@/lib/cache";
+import { getCachedHoroscope, setCachedHoroscope, getPseudoSign } from "@/lib/cache";
 import { scrapeHoroscope } from "@/lib/scraper";
+import type { Sign } from "@/lib/signs";
 
 export async function POST(req: NextRequest) {
   const signature = req.headers.get("x-signature-ed25519") ?? "";
@@ -23,23 +24,39 @@ export async function POST(req: NextRequest) {
   const signOption = interaction.data?.options?.find((o: { name: string }) => o.name === "signe")
     ?.value as string | undefined;
 
-  if (!signOption || !isValidSign(signOption)) {
+  if (!signOption) {
     return NextResponse.json({
       type: 4,
-      data: { content: "Signe invalide. Utilise un signe du zodiaque valide." },
+      data: { content: "Indique un signe du zodiaque ou un pseudo." },
     });
   }
 
-  const signMeta = getSign(signOption)!;
+  let sign: Sign;
+  if (isValidSign(signOption)) {
+    sign = signOption;
+  } else {
+    const pseudoEntry = await getPseudoSign(signOption);
+    if (!pseudoEntry) {
+      return NextResponse.json({
+        type: 4,
+        data: {
+          content: `"${signOption}" n'est ni un signe du zodiaque ni un pseudo connu.`,
+        },
+      });
+    }
+    sign = pseudoEntry.sign;
+  }
+
+  const signMeta = getSign(sign)!;
 
   let horoscope: string | null = null;
-  const cached = await getCachedHoroscope(signOption);
+  const cached = await getCachedHoroscope(sign);
   if (cached) {
     horoscope = cached.text;
   } else {
     try {
-      const result = await scrapeHoroscope(signOption);
-      await setCachedHoroscope(signOption, result);
+      const result = await scrapeHoroscope(sign);
+      await setCachedHoroscope(sign, result);
       horoscope = result.text;
     } catch {
       // horoscope stays null

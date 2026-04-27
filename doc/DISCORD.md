@@ -1,12 +1,15 @@
 # Discord setup
 
-Le bot utilise les **Discord Interactions** (webhooks) — pas de gateway persistant, pas de bot connecté en permanence. Discord envoie un `POST` à l'endpoint `/api/discord` à chaque commande slash.
+Le bot utilise les **Discord Interactions** (webhooks) — pas de gateway persistant. Discord envoie un `POST` à l'endpoint `/api/discord` à chaque commande slash.
+
+La commande est enregistrée en mode **User Install** : une fois autorisée sur ton compte Discord, elle est disponible partout — serveurs, DMs, conversations de groupe — même sans que le bot soit membre du serveur.
+
+---
 
 ## 1. Créer l'application Discord
 
-Aller sur [discord.com/developers/applications](https://discord.com/developers/applications) → **New Application**
-
-Donner un nom (`Legoroscope`), valider.
+1. Aller sur [discord.com/developers/applications](https://discord.com/developers/applications) → **New Application**
+2. Donner un nom (`Légoroscope`), valider
 
 ## 2. Récupérer les identifiants
 
@@ -21,17 +24,29 @@ Dans **Bot** :
 
 Ajouter ces trois variables dans `.env.local` (dev) ou dans les variables d'environnement Vercel (prod).
 
-## 3. Déployer l'app (prod uniquement)
+## 3. Activer "User Install"
 
-L'endpoint doit être accessible publiquement pour que Discord puisse l'appeler. En dev, il faudrait un tunnel (ngrok, etc.) — ce n'est pas nécessaire pour tester localement, uniquement pour valider la signature Discord.
+Dans **Installation** :
 
-En prod sur Vercel, l'URL de l'endpoint sera :
+1. Dans **Installation Contexts**, cocher **User Install** (en plus de Guild Install si tu veux que la commande soit aussi disponible dans les serveurs)
+2. Dans **Default Install Settings → User Install**, ajouter le scope `applications.commands`
+3. Cliquer **Save Changes**
+
+> Sans cette étape, la commande ne sera disponible que dans les serveurs où le bot est invité.
+
+## 4. Déployer l'app
+
+L'endpoint `/api/discord` doit être accessible publiquement pour que Discord puisse l'appeler.
+
+En prod sur Vercel, l'URL sera :
 
 ```
 https://<ton-domaine>.vercel.app/api/discord
 ```
 
-## 4. Configurer l'endpoint dans Discord
+En dev local, il faut un tunnel (ex : `ngrok http 6677`) — uniquement nécessaire pour valider la configuration, pas pour le développement quotidien.
+
+## 5. Configurer l'endpoint dans Discord
 
 Dans **General Information** → **Interactions Endpoint URL** :
 
@@ -39,28 +54,34 @@ Dans **General Information** → **Interactions Endpoint URL** :
 https://<ton-domaine>.vercel.app/api/discord
 ```
 
-Discord envoie un PING de vérification à cette URL lors de la sauvegarde. L'app doit répondre avec `{ type: 1 }` et la signature Ed25519 doit être valide — c'est déjà géré dans `src/app/api/discord/route.ts`.
+Discord envoie un PING de vérification à la sauvegarde. L'app doit répondre `{ type: 1 }` avec une signature Ed25519 valide — c'est géré dans `src/app/api/discord/route.ts`.
 
-## 5. Enregistrer la commande slash
+## 6. Enregistrer la commande slash
 
-Lancer le script d'enregistrement (à créer dans `scripts/register-discord-command.ts`) :
+Avec les variables d'environnement remplies dans `.env.local`, lancer :
 
 ```bash
-npx tsx scripts/register-discord-command.ts
+make discord-register
 ```
 
-Ce script appelle l'API REST Discord pour enregistrer la commande `/horoscope` avec l'option `signe`. C'est une opération **one-shot** — à relancer uniquement si la commande change.
+Ce script appelle l'API REST Discord pour déclarer la commande `/horoscope` globalement. C'est une opération **one-shot** — à relancer uniquement si la définition de la commande change.
 
-> Le script n'existe pas encore — voir la section "Still missing" dans AGENTS.md.
+La commande accepte :
 
-## 6. Ajouter le bot à un serveur
+- un slug de signe : `/horoscope cancer`
+- un pseudo : `/horoscope michel` (résolu vers le signe associé dans le KV)
 
-Dans **OAuth2** → **URL Generator** :
+## 7. Installer la commande sur ton compte Discord
 
-- Scopes : `applications.commands`
-- Permissions : aucune (le bot ne fait que répondre aux interactions)
+1. Dans **Installation** → copier le lien d'installation **User Install**
+2. Ouvrir ce lien dans un navigateur → **Autoriser**
+3. La commande `/horoscope` est maintenant disponible dans **toutes tes conversations Discord**
 
-Ouvrir l'URL générée et sélectionner le serveur cible.
+Pour l'installer aussi dans un serveur (pour que d'autres membres puissent l'utiliser) :
+
+1. Dans **OAuth2** → **URL Generator**
+2. Scopes : `applications.commands`
+3. Ouvrir l'URL générée → sélectionner le serveur cible
 
 ## Récapitulatif des variables
 
