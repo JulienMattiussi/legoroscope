@@ -6,8 +6,8 @@ Horoscope hebdomadaire du [Gorafi](https://www.legorafi.fr/category/horoscope/),
 
 - **Scraping** — 3 stratégies (CSS, RSS, regex) avec fallback automatique ; cache hebdomadaire dans Vercel KV ; fallback sur la dernière valeur connue si tout échoue.
 - **API REST** — un endpoint par signe, un endpoint global pour tous les signes, résolution de pseudos (un pseudo mappé à un signe → retourne l'horoscope du signe).
-- **Bot Discord** — commande slash `/horoscope <signe>` via webhook Interactions (sans gateway persistant).
-- **Web** — grille des 13 signes avec compte de pseudos, page de détail, page `/pseudos` alphabétique, connexion GitHub OAuth.
+- **Bot Discord** — commande slash `/horoscope` via webhook Interactions (sans gateway persistant) ; jusqu'à 5 signes ou pseudos en une seule commande ; autocomplete ; fonctionne en DM et hors serveur (User Install).
+- **Web** — grille des 13 signes avec compte de pseudos, page de détail, page `/pseudos` alphabétique avec export/import JSON, connexion GitHub OAuth.
 
 ## Stack
 
@@ -16,7 +16,7 @@ Horoscope hebdomadaire du [Gorafi](https://www.legorafi.fr/category/horoscope/),
 - **NextAuth v5** — GitHub OAuth (accès restreint à un seul compte)
 - **cheerio** — parsing HTML pour la stratégie CSS
 - **tweetnacl** — vérification de signature Ed25519 pour Discord
-- **Vitest** — tests unitaires (37 tests)
+- **Vitest** + `@testing-library/react` — tests unitaires et composants (62 tests)
 - **Playwright** — tests e2e
 
 ## Démarrage rapide
@@ -80,8 +80,9 @@ make test-e2e     # playwright test
 make typecheck    # tsc --noEmit
 make lint         # eslint
 make format       # prettier --write
-make check        # format-check + lint + typecheck + test-unit
-make clean        # rm -rf .next dist
+make check             # format-check + lint + typecheck + test-unit
+make clean             # rm -rf .next dist
+make discord-register  # Enregistrer la commande slash Discord (une seule fois)
 ```
 
 ## Structure du projet
@@ -114,12 +115,12 @@ src/
 │   ├── HoroscopeCard.tsx   # Carte signe : lien vers détail + bouton copie
 │   ├── CopyButton.tsx      # Client component — copie presse-papiers avec feedback 2s
 │   ├── PseudoManager.tsx   # Client component — ajout/suppression pseudos
-│   └── PseudoGrid.tsx      # Client component — grille alphabétique avec corbeille
+│   └── PseudoGrid.tsx      # Client component — grille alphabétique avec corbeille + export/import JSON
 └── styles/
     └── theme.css           # CSS custom properties — toutes les couleurs ici
 tests/
 ├── unit/          # Vitest — logique pure (scraper, cache, signature Discord)
-├── component/     # Vitest + Testing Library (à venir)
+├── component/     # Vitest + Testing Library
 └── e2e/           # Playwright (à venir)
 ```
 

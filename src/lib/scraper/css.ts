@@ -3,6 +3,7 @@ import type { Sign } from "@/lib/signs";
 import { SIGNS } from "@/lib/signs";
 import { GORAFI_CONFIG } from "@/lib/gorafi.config";
 import type { StrategyOutput } from "./index";
+import { fetchPage } from "./fetch";
 
 /**
  * Strategy 1: CSS selectors on the Gorafi horoscope article.
@@ -69,17 +70,4 @@ async function findLatestArticleUrl(): Promise<string | null> {
   });
 
   return found;
-}
-
-async function fetchPage(url: string): Promise<string | null> {
-  try {
-    const res = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; Legoroscope/1.0)" },
-      next: { revalidate: 0 },
-    });
-    if (!res.ok) return null;
-    return res.text();
-  } catch {
-    return null;
-  }
 }

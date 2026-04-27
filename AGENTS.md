@@ -162,16 +162,35 @@ The codebase is functionally complete. All checks and unit tests pass (37 tests)
 - **Discord** — Ed25519 verification + command dispatch; `/api/discord` handles PING and `APPLICATION_COMMAND`.
 - **Auth** — NextAuth v5 GitHub OAuth; single allowed login via `ALLOWED_GITHUB_LOGIN` env var.
 - **Frontend** — Home grid (3 columns, 1200px wide, pseudo count badge, copy button, source link in subtitle); sign detail page with pseudo manager; `/pseudos` page (alphabetical grid, trash+confirm); session-aware nav.
-- **Unit tests** — `tests/unit/`: all three scraper strategy parsing functions, orchestrator, cache, discord sig, signs (37 tests).
+- **Unit tests** — `tests/unit/`: all three scraper strategy parsing functions, orchestrator, cache, discord sig, signs, discord route handler (62 tests).
+- **Component tests** — `tests/component/PseudoGrid.test.tsx`: export (2) + import (6) tests covering the full happy path and all validation branches.
 
 ### Still missing
 
 - `scripts/register-discord-command.ts` — one-off script to register `/horoscope <signe>` via the Discord REST API. Needs `DISCORD_APPLICATION_ID` + `DISCORD_BOT_TOKEN`.
-- `tests/component/` — component tests with Vitest + Testing Library (directory exists, no files yet).
 - `tests/e2e/` — Playwright e2e tests (directory exists, no files yet).
 - Vercel deployment + env vars not wired up yet.
 
 ## Coding rules
+
+### Testing and documentation (mandatory)
+
+Every feature, change, or bug fix must be accompanied by:
+
+1. **Tests** — unit tests for pure logic (`tests/unit/`), component tests for client components with non-trivial behaviour (`tests/component/`). If a behaviour can be tested, it must be. `make check` must pass before considering a task done.
+2. **Documentation** — update `AGENTS.md` if the change introduces a new pattern, rule, or constraint (e.g. a new helper to always use, a new convention, a new env var). Update `README.md` if the change is user-visible (new feature, new command, new env var). Update relevant files in `doc/` when a third-party integration changes.
+
+**Definition of done: code + tests + docs. Never mark a task complete if any of the three is missing.**
+
+### Component tests (`tests/component/`)
+
+- Use Vitest + `@testing-library/react`.
+- jsdom does not implement `URL.createObjectURL` / `URL.revokeObjectURL` — stub them at module level: `Object.assign(URL, { createObjectURL: vi.fn(() => "blob:fake"), revokeObjectURL: vi.fn() })`.
+- jsdom `File.text()` is unreliable — use mock file objects: `{ text: () => Promise.resolve(content) } as File`.
+- Do not test `Blob.prototype.text()` in jsdom — check `blob.type` and `blob.size` instead.
+- Mock `fetch` globally in `beforeEach` with `vi.stubGlobal("fetch", vi.fn())`.
+
+### General rules
 
 - **TypeScript strict** — no implicit `any`, `noUncheckedIndexedAccess` enabled.
 - **Code and comments in English.** UI copy can be in French since the product is French.
@@ -184,6 +203,11 @@ The codebase is functionally complete. All checks and unit tests pass (37 tests)
 - **Client components** — any component using hooks (`useState`, `useEffect`) or event handlers must have `"use client"` as its first line.
 - **Buttons inside `<Link>`** — use `e.stopPropagation()` in the button's onClick to prevent the parent link from navigating.
 - **CSS hover/focus effects** — inline styles don't support `:hover`. Add a CSS class in `src/app/globals.css` instead.
+- **Auth in route handlers** — use `requireUserId()` from `src/lib/auth.ts`. Pattern: `const userId = await requireUserId(); if (userId instanceof NextResponse) return userId;`
+- **Scraping error handling** — wrap `scrapeAllHoroscopes()` in try/catch in every route. On failure, return what's in cache (stale or null) rather than letting the error propagate. Never return a 500 for a scraping failure.
+- **Sign input matching** — use `findSignByInput()` from `src/lib/signs.ts` instead of `isValidSign()` for user-facing input. It handles accents, case, and singular/plural (e.g. "poisson" → poissons, "Bélier" → belier).
+- **String normalization** — use `normalize()` from `src/lib/signs.ts` (strips accents + lowercase). Do not reimplement inline.
+- **HTTP fetching in scrapers** — use `fetchPage()` from `src/lib/scraper/fetch.ts`. Do not add a local `fetchPage` in strategy files.
 - **TypeScript narrowing across async callbacks** — after `if (!session?.user?.id) return`, extract `const userId = session.user.id` before any `async` callback or `Promise.all` to avoid losing the narrowed type.
 - **Case-insensitive string comparison** — use `a.localeCompare(b, "fr", { sensitivity: "base" }) === 0`.
 - **Run `make check` before committing.**

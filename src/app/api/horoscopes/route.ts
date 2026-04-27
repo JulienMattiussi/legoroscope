@@ -15,14 +15,18 @@ export async function GET() {
   const missing = getMissingSigns(cached);
 
   if (missing.length > 0) {
-    // At least one sign is uncached — fetch the article once for all missing signs
-    const scraped = await scrapeAllHoroscopes();
-    const now = new Date().toISOString();
-    for (const [s, result] of Object.entries(scraped)) {
-      if (isValidSign(s) && result && !cached[s]) {
-        await setCachedHoroscope(s, result);
-        cached[s] = { ...result, fetchedAt: now };
+    try {
+      // At least one sign is uncached — fetch the article once for all missing signs
+      const scraped = await scrapeAllHoroscopes();
+      const now = new Date().toISOString();
+      for (const [s, result] of Object.entries(scraped)) {
+        if (isValidSign(s) && result && !cached[s]) {
+          await setCachedHoroscope(s, result);
+          cached[s] = { ...result, fetchedAt: now };
+        }
       }
+    } catch {
+      // scraping failed — return whatever is in cache (stale or null)
     }
   }
 

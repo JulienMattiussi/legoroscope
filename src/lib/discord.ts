@@ -1,4 +1,5 @@
 import nacl from "tweetnacl";
+import { SIGNS, normalize } from "@/lib/signs";
 
 const PUBLIC_KEY = process.env.DISCORD_PUBLIC_KEY ?? "";
 
@@ -13,6 +14,12 @@ export type DiscordInteraction = {
 export type DiscordResponse = {
   type: number;
   data?: { content: string };
+};
+
+export type SignResult = {
+  label: string;
+  emoji: string;
+  horoscope: string | null;
 };
 
 // Interaction types
@@ -43,28 +50,27 @@ export function verifyDiscordSignature(
   }
 }
 
+export function autocompleteSign(typed: string): { name: string; value: string }[] {
+  const n = normalize(typed);
+  return SIGNS.filter((s) => s.slug.startsWith(n) || normalize(s.label).startsWith(n)).map((s) => ({
+    name: `${s.emoji} ${s.label}`,
+    value: s.slug,
+  }));
+}
+
 export function handleInteraction(
   interaction: DiscordInteraction,
-  horoscope: string | null,
-  signLabel: string,
+  results: SignResult[],
 ): DiscordResponse {
-  if (interaction.type === PING) {
-    return { type: PONG };
-  }
+  if (interaction.type === PING) return { type: PONG };
 
   if (interaction.type === APPLICATION_COMMAND) {
-    if (!horoscope) {
-      return {
-        type: CHANNEL_MESSAGE_WITH_SOURCE,
-        data: {
-          content: `Désolé, l'horoscope du ${signLabel} n'est pas disponible pour le moment.`,
-        },
-      };
-    }
-    return {
-      type: CHANNEL_MESSAGE_WITH_SOURCE,
-      data: { content: `**${signLabel}** — ${horoscope}` },
-    };
+    const lines = results.map(({ emoji, label, horoscope }) =>
+      horoscope
+        ? `${emoji} **${label}** — ${horoscope}`
+        : `${emoji} **${label}** — *non disponible*`,
+    );
+    return { type: CHANNEL_MESSAGE_WITH_SOURCE, data: { content: lines.join("\n") } };
   }
 
   return { type: CHANNEL_MESSAGE_WITH_SOURCE, data: { content: "Commande non reconnue." } };

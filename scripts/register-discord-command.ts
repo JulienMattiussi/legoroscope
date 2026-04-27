@@ -19,6 +19,14 @@ async function main() {
     process.exit(1);
   }
 
+  const extraOptions = [2, 3, 4, 5].map((n) => ({
+    name: `signe${n}`,
+    description: `Signe ou pseudo supplémentaire`,
+    type: 3, // STRING
+    required: false,
+    autocomplete: true,
+  }));
+
   const command = {
     name: "horoscope",
     description: "Affiche l'horoscope de la semaine selon Le Gorafi",
@@ -28,7 +36,9 @@ async function main() {
         description: "Signe du zodiaque (ex: cancer) ou pseudo (ex: michel)",
         type: 3, // STRING
         required: true,
+        autocomplete: true,
       },
+      ...extraOptions,
     ],
     // 0 = guild install, 1 = user install (works in any conversation)
     integration_types: [0, 1],

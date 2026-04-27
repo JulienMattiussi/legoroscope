@@ -26,7 +26,7 @@ export function getSign(slug: string) {
   return SIGNS.find((s) => s.slug === slug) ?? null;
 }
 
-function normalize(s: string): string {
+export function normalize(s: string): string {
   return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 }
 

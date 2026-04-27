@@ -4,6 +4,7 @@ import { SIGNS } from "@/lib/signs";
 import { GORAFI_CONFIG } from "@/lib/gorafi.config";
 import { extractSignsFromArticle } from "./css";
 import type { StrategyOutput } from "./index";
+import { fetchPage } from "./fetch";
 
 /**
  * Strategy 2: RSS/Atom feed.
@@ -18,7 +19,7 @@ import type { StrategyOutput } from "./index";
  * rather than redundant.
  */
 export async function scrapeAllWithRSS(): Promise<StrategyOutput> {
-  const xml = await fetchFeed(GORAFI_CONFIG.rssFeedUrl);
+  const xml = await fetchPage(GORAFI_CONFIG.rssFeedUrl);
   if (!xml) return { results: {} };
 
   const articleUrl = extractLatestArticleUrl(xml);
@@ -79,30 +80,4 @@ function extractSignsFromParagraphs(html: string): Partial<Record<Sign, string>>
   });
 
   return results;
-}
-
-async function fetchFeed(url: string): Promise<string | null> {
-  try {
-    const res = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; Legoroscope/1.0)" },
-      next: { revalidate: 0 },
-    });
-    if (!res.ok) return null;
-    return res.text();
-  } catch {
-    return null;
-  }
-}
-
-async function fetchPage(url: string): Promise<string | null> {
-  try {
-    const res = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; Legoroscope/1.0)" },
-      next: { revalidate: 0 },
-    });
-    if (!res.ok) return null;
-    return res.text();
-  } catch {
-    return null;
-  }
 }

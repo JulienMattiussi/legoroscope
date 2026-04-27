@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
-import { getSign } from "@/lib/signs";
+import { getSign, isValidSign } from "@/lib/signs";
 import type { Sign } from "@/lib/signs";
 
 export type PseudoEntry = { pseudo: string; sign: Sign };
@@ -31,6 +31,73 @@ function TrashIcon() {
 export function PseudoGrid({ initialEntries }: { initialEntries: PseudoEntry[] }) {
   const [entries, setEntries] = useState(initialEntries);
   const [confirming, setConfirming] = useState<string | null>(null); // "sign:pseudo"
+  const [importStatus, setImportStatus] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function handleExport() {
+    const json = JSON.stringify(entries, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "pseudos.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(await file.text());
+    } catch {
+      setImportStatus("Fichier JSON invalide.");
+      return;
+    }
+
+    if (!Array.isArray(parsed)) {
+      setImportStatus("Format invalide : tableau attendu.");
+      return;
+    }
+
+    const valid = parsed.filter(
+      (item): item is PseudoEntry =>
+        typeof item === "object" &&
+        item !== null &&
+        typeof (item as PseudoEntry).pseudo === "string" &&
+        isValidSign((item as PseudoEntry).sign),
+    );
+
+    if (valid.length === 0) {
+      setImportStatus("Aucune entrée valide dans le fichier.");
+      return;
+    }
+
+    setImportStatus(`Importation de ${valid.length} pseudo${valid.length > 1 ? "s" : ""}…`);
+
+    const results = await Promise.allSettled(
+      valid.map(({ pseudo, sign }) =>
+        fetch(`/api/user/pseudos/${sign}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pseudo }),
+        }),
+      ),
+    );
+
+    const ok = results.filter((r) => r.status === "fulfilled" && r.value.ok).length;
+    setImportStatus(`${ok} pseudo${ok > 1 ? "s" : ""} importé${ok > 1 ? "s" : ""}.`);
+
+    // Reload full list from API to reflect moved pseudos
+    const res = await fetch("/api/user/pseudos");
+    if (res.ok) {
+      const data = (await res.json()) as { pseudos: PseudoEntry[] };
+      setEntries(data.pseudos);
+    }
+  }
 
   async function handleDelete(pseudo: string, sign: Sign) {
     const key = `${sign}:${pseudo}`;
@@ -51,10 +118,40 @@ export function PseudoGrid({ initialEntries }: { initialEntries: PseudoEntry[] }
 
   return (
     <>
-      <p style={{ color: "var(--text-muted)", marginBottom: "1rem" }}>
-        {entries.length} pseudo{entries.length !== 1 ? "s" : ""} enregistré
-        {entries.length !== 1 ? "s" : ""}
-      </p>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "0.75rem",
+          marginBottom: "1rem",
+          flexWrap: "wrap",
+        }}
+      >
+        <p style={{ color: "var(--text-muted)", margin: 0 }}>
+          {entries.length} pseudo{entries.length !== 1 ? "s" : ""} enregistré
+          {entries.length !== 1 ? "s" : ""}
+        </p>
+        <div style={{ display: "flex", gap: "0.5rem", marginLeft: "auto" }}>
+          <button onClick={handleExport} className="toolbar-btn">
+            Exporter
+          </button>
+          <button onClick={() => fileInputRef.current?.click()} className="toolbar-btn">
+            Importer
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json,application/json"
+            style={{ display: "none" }}
+            onChange={handleImport}
+          />
+        </div>
+      </div>
+      {importStatus && (
+        <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "0.75rem" }}>
+          {importStatus}
+        </p>
+      )}
       {entries.length === 0 && (
         <p style={{ color: "var(--text-muted)" }}>Aucun pseudo enregistré.</p>
       )}

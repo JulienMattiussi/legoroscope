@@ -1,5 +1,6 @@
 import NextAuth from "next-auth";
 import GitHub from "next-auth/providers/github";
+import { NextResponse } from "next/server";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [GitHub],
@@ -17,3 +18,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
   },
 });
+
+export async function requireUserId(): Promise<string | NextResponse> {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Non authentifié." }, { status: 401 });
+  return session.user.id;
+}

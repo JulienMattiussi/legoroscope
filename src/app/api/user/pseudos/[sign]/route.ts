@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireUserId } from "@/lib/auth";
 import { isValidSign, SIGN_SLUGS, getSign } from "@/lib/signs";
 import { getUserPseudos, setUserPseudos, setPseudoSign, deletePseudoSign } from "@/lib/cache";
 
@@ -8,9 +8,8 @@ type Params = { params: Promise<{ sign: string }> };
 const isSame = (a: string, b: string) => a.localeCompare(b, "fr", { sensitivity: "base" }) === 0;
 
 export async function GET(_req: NextRequest, { params }: Params) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Non authentifié." }, { status: 401 });
-  const userId = session.user.id;
+  const userId = await requireUserId();
+  if (userId instanceof NextResponse) return userId;
 
   const { sign } = await params;
   if (!isValidSign(sign)) return NextResponse.json({ error: "Signe inconnu." }, { status: 404 });
@@ -20,9 +19,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
 }
 
 export async function POST(req: NextRequest, { params }: Params) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Non authentifié." }, { status: 401 });
-  const userId = session.user.id;
+  const userId = await requireUserId();
+  if (userId instanceof NextResponse) return userId;
 
   const { sign } = await params;
   if (!isValidSign(sign)) return NextResponse.json({ error: "Signe inconnu." }, { status: 404 });
@@ -63,9 +61,8 @@ export async function POST(req: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(req: NextRequest, { params }: Params) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Non authentifié." }, { status: 401 });
-  const userId = session.user.id;
+  const userId = await requireUserId();
+  if (userId instanceof NextResponse) return userId;
 
   const { sign } = await params;
   if (!isValidSign(sign)) return NextResponse.json({ error: "Signe inconnu." }, { status: 404 });
