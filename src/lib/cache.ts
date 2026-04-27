@@ -1,15 +1,18 @@
-import { put, list, del } from "@vercel/blob";
+import { put, list, del, get } from "@vercel/blob";
 import type { Sign } from "@/lib/signs";
 import type { StrategyName } from "@/lib/scraper";
 
 const isKvAvailable = () => !!process.env.BLOB_READ_WRITE_TOKEN;
 
 async function blobGet<T>(key: string): Promise<T | null> {
-  const { blobs } = await list({ prefix: key, limit: 1 });
-  if (!blobs.length) return null;
-  const res = await fetch(blobs[0]!.url);
-  if (!res.ok) return null;
-  return res.json() as Promise<T>;
+  try {
+    const res = await get(key, { access: "private" });
+    if (!res || res.statusCode !== 200) return null;
+    const text = await new Response(res.stream).text();
+    return JSON.parse(text) as T;
+  } catch {
+    return null;
+  }
 }
 
 async function blobSet(key: string, value: unknown): Promise<void> {
