@@ -1,46 +1,53 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-const { mockGet, mockSet, mockDel } = vi.hoisted(() => ({
-  mockGet: vi.fn(),
-  mockSet: vi.fn(),
+const { mockList, mockPut, mockDel, mockFetch } = vi.hoisted(() => ({
+  mockList: vi.fn(),
+  mockPut: vi.fn(),
   mockDel: vi.fn(),
+  mockFetch: vi.fn(),
 }));
 
-vi.mock("ioredis", () => ({
-  default: vi.fn().mockReturnValue({ get: mockGet, set: mockSet, del: mockDel }),
-}));
+vi.mock("@vercel/blob", () => ({ list: mockList, put: mockPut, del: mockDel }));
 
 import { getCachedHoroscope, setCachedHoroscope } from "@/lib/cache";
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.stubEnv("REDIS_URL", "redis://localhost:6379");
+  vi.stubEnv("BLOB_READ_WRITE_TOKEN", "vercel_blob_rw_test");
+  vi.stubGlobal("fetch", mockFetch);
 });
 
 afterEach(() => {
   vi.unstubAllEnvs();
 });
 
+const ENTRY = {
+  text: "Horoscope test",
+  fetchedAt: new Date().toISOString(),
+  strategy: "css" as const,
+};
+const STALE = {
+  text: "Vieux horoscope",
+  fetchedAt: "2026-01-01T00:00:00.000Z",
+  strategy: "rss" as const,
+};
+
 describe("getCachedHoroscope", () => {
   it("returns cached data when the weekly key exists", async () => {
-    const entry = {
-      text: "Horoscope test",
-      fetchedAt: new Date().toISOString(),
-      strategy: "css" as const,
-    };
-    mockGet.mockResolvedValueOnce(JSON.stringify(entry));
+    mockList.mockResolvedValueOnce({ blobs: [{ url: "https://blob/week" }] });
+    mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(ENTRY) });
+
     const result = await getCachedHoroscope("lion");
     expect(result?.text).toBe("Horoscope test");
     expect(result?.stale).toBeUndefined();
   });
 
   it("falls back to stale data when weekly key is missing", async () => {
-    const stale = {
-      text: "Vieux horoscope",
-      fetchedAt: "2026-01-01T00:00:00.000Z",
-      strategy: "rss" as const,
-    };
-    mockGet.mockResolvedValueOnce(null).mockResolvedValueOnce(JSON.stringify(stale));
+    mockList
+      .mockResolvedValueOnce({ blobs: [] }) // weekly miss
+      .mockResolvedValueOnce({ blobs: [{ url: "https://blob/stale" }] });
+    mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(STALE) });
+
     const result = await getCachedHoroscope("lion");
     expect(result?.text).toBe("Vieux horoscope");
     expect(result?.stale).toBe(true);
@@ -48,7 +55,7 @@ describe("getCachedHoroscope", () => {
   });
 
   it("returns null when both keys are missing", async () => {
-    mockGet.mockResolvedValue(null);
+    mockList.mockResolvedValue({ blobs: [] });
     const result = await getCachedHoroscope("lion");
     expect(result).toBeNull();
   });
@@ -56,10 +63,10 @@ describe("getCachedHoroscope", () => {
 
 describe("setCachedHoroscope", () => {
   it("writes both weekly key and stale key", async () => {
-    mockSet.mockResolvedValue("OK");
+    mockPut.mockResolvedValue({ url: "https://blob/x" });
     await setCachedHoroscope("scorpion", { text: "Horoscope", strategy: "css" });
-    expect(mockSet).toHaveBeenCalledTimes(2);
-    expect(mockSet.mock.calls[0]?.[0]).toMatch(/^horoscope:\d+:\d+:scorpion$/);
-    expect(mockSet.mock.calls[1]?.[0]).toBe("horoscope:stale:scorpion");
+    expect(mockPut).toHaveBeenCalledTimes(2);
+    expect(mockPut.mock.calls[0]?.[0]).toMatch(/^horoscope:\d+:\d+:scorpion$/);
+    expect(mockPut.mock.calls[1]?.[0]).toBe("horoscope:stale:scorpion");
   });
 });

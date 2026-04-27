@@ -1,38 +1,33 @@
-import Redis from "ioredis";
+import { put, list, del } from "@vercel/blob";
 import type { Sign } from "@/lib/signs";
 import type { StrategyName } from "@/lib/scraper";
 
-const isKvAvailable = () => !!process.env.REDIS_URL;
+const isKvAvailable = () => !!process.env.BLOB_READ_WRITE_TOKEN;
 
-// Reuse connection across warm invocations in the same worker instance.
-const g = global as typeof global & { _kv?: Redis; _localStore?: Map<string, unknown> };
-
-function getKv(): Redis {
-  if (!g._kv) {
-    g._kv = new Redis(process.env.REDIS_URL!, { enableReadyCheck: false, maxRetriesPerRequest: 3 });
-  }
-  return g._kv;
+async function blobGet<T>(key: string): Promise<T | null> {
+  const { blobs } = await list({ prefix: key, limit: 1 });
+  if (!blobs.length) return null;
+  const res = await fetch(blobs[0]!.url);
+  if (!res.ok) return null;
+  return res.json() as Promise<T>;
 }
 
-async function kvGet<T>(key: string): Promise<T | null> {
-  const raw = await getKv().get(key);
-  return raw ? (JSON.parse(raw) as T) : null;
+async function blobSet(key: string, value: unknown): Promise<void> {
+  await put(key, JSON.stringify(value), {
+    access: "public",
+    contentType: "application/json",
+    addRandomSuffix: false,
+    allowOverwrite: true,
+  });
 }
 
-async function kvSet(key: string, value: unknown, exSeconds?: number): Promise<void> {
-  const serialized = JSON.stringify(value);
-  if (exSeconds) {
-    await getKv().set(key, serialized, "EX", exSeconds);
-  } else {
-    await getKv().set(key, serialized);
-  }
+async function blobDel(key: string): Promise<void> {
+  const { blobs } = await list({ prefix: key, limit: 1 });
+  if (blobs.length) await del(blobs[0]!.url);
 }
 
-async function kvDel(key: string): Promise<void> {
-  await getKv().del(key);
-}
-
-// In-memory fallback for local dev (no REDIS_URL). Attached to global to survive Next.js HMR.
+// In-memory fallback for local dev (no BLOB_READ_WRITE_TOKEN). Survives Next.js HMR.
+const g = global as typeof global & { _localStore?: Map<string, unknown> };
 g._localStore ??= new Map();
 const localStore = g._localStore;
 
@@ -43,9 +38,6 @@ export type CachedHoroscope = {
   stale?: true;
   sourceUrl?: string;
 };
-
-// A week TTL with a small buffer so Monday re-fetches work cleanly
-const WEEK_TTL_SECONDS = 7 * 24 * 60 * 60 + 3600;
 
 function currentWeekKey(): { year: number; week: number } {
   const now = new Date();
@@ -74,9 +66,9 @@ export async function getCachedHoroscope(sign: Sign): Promise<CachedHoroscope | 
     if (stale) return { ...stale, strategy: "stale", stale: true };
     return null;
   }
-  const cached = await kvGet<CachedHoroscope>(weekKey(sign));
+  const cached = await blobGet<CachedHoroscope>(weekKey(sign));
   if (cached) return cached;
-  const stale = await kvGet<CachedHoroscope>(staleKey(sign));
+  const stale = await blobGet<CachedHoroscope>(staleKey(sign));
   if (stale) return { ...stale, strategy: "stale", stale: true };
   return null;
 }
@@ -91,8 +83,8 @@ export async function setCachedHoroscope(
     localStore.set(staleKey(sign), entry);
     return;
   }
-  await kvSet(weekKey(sign), entry, WEEK_TTL_SECONDS);
-  await kvSet(staleKey(sign), entry);
+  await blobSet(weekKey(sign), entry);
+  await blobSet(staleKey(sign), entry);
 }
 
 function userPseudosKey(githubId: string, sign: Sign): string {
@@ -101,7 +93,7 @@ function userPseudosKey(githubId: string, sign: Sign): string {
 
 export async function getUserPseudos(githubId: string, sign: Sign): Promise<string[]> {
   if (!isKvAvailable()) return (localStore.get(userPseudosKey(githubId, sign)) as string[]) ?? [];
-  return (await kvGet<string[]>(userPseudosKey(githubId, sign))) ?? [];
+  return (await blobGet<string[]>(userPseudosKey(githubId, sign))) ?? [];
 }
 
 export async function setUserPseudos(
@@ -113,7 +105,7 @@ export async function setUserPseudos(
     localStore.set(userPseudosKey(githubId, sign), pseudos);
     return;
   }
-  await kvSet(userPseudosKey(githubId, sign), pseudos);
+  await blobSet(userPseudosKey(githubId, sign), pseudos);
 }
 
 function pseudoSignKey(pseudo: string): string {
@@ -125,7 +117,7 @@ export async function getPseudoSign(
 ): Promise<{ sign: Sign; userId: string } | null> {
   if (!isKvAvailable())
     return (localStore.get(pseudoSignKey(pseudo)) as { sign: Sign; userId: string }) ?? null;
-  return kvGet<{ sign: Sign; userId: string }>(pseudoSignKey(pseudo));
+  return blobGet<{ sign: Sign; userId: string }>(pseudoSignKey(pseudo));
 }
 
 export async function setPseudoSign(pseudo: string, sign: Sign, userId: string): Promise<void> {
@@ -133,7 +125,7 @@ export async function setPseudoSign(pseudo: string, sign: Sign, userId: string):
     localStore.set(pseudoSignKey(pseudo), { sign, userId });
     return;
   }
-  await kvSet(pseudoSignKey(pseudo), { sign, userId });
+  await blobSet(pseudoSignKey(pseudo), { sign, userId });
 }
 
 export async function deletePseudoSign(pseudo: string): Promise<void> {
@@ -141,5 +133,5 @@ export async function deletePseudoSign(pseudo: string): Promise<void> {
     localStore.delete(pseudoSignKey(pseudo));
     return;
   }
-  await kvDel(pseudoSignKey(pseudo));
+  await blobDel(pseudoSignKey(pseudo));
 }
