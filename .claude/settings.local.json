@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx create-next-app@latest . --typescript --eslint --tailwind --app --src-dir --import-alias \"@/*\" --no-turbopack --yes)",
+      "Read(//tmp/**)",
+      "Bash(mkdir -p /home/julien/Documents/MyRepos/goroscope/src/app/api/horoscope/\\\\[sign\\\\])",
+      "Bash(mkdir -p /home/julien/Documents/MyRepos/goroscope/src/app/api/auth/\\\\[...nextauth\\\\])",
+      "Bash(mkdir -p /home/julien/Documents/MyRepos/goroscope/src/app/\\\\[sign\\\\])",
+      "WebFetch(domain:www.legorafi.fr)",
+      "Bash(curl -s \"https://www.legorafi.fr/category/horoscope-2/\")",
+      "Bash(curl -s \"https://www.legorafi.fr/2026/04/27/horoscope-du-27-avril-2026/\")",
+      "Read(//home/julien/.claude/projects/**)",
+      "Bash(git -C /home/julien/Documents/MyRepos/legoroscope log --oneline -20)",
+      "Bash(python3 -c \"import json,sys; p=json.load\\(sys.stdin\\); print\\('deps:', list\\(p.get\\('dependencies',{}\\).keys\\(\\)\\)\\); print\\('devDeps:', list\\(p.get\\('devDependencies',{}\\).keys\\(\\)\\)\\)\")",
+      "Bash(git -C /home/julien/Documents/MyRepos/legoroscope remote -v)",
+      "Bash(git -C /home/julien/Documents/MyRepos/legoroscope config --local --list)"
+    ],
+    "additionalDirectories": [
+      "/home/julien/Documents/MyRepos/goroscope",
+      "/home/julien/Documents/MyRepos",
+      "/home/julien/.claire/projects/-home-julien-Documents-MyRepos-legoroscope/memory"
+    ]
+  }
+}

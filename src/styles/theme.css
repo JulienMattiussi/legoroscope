@@ -1,0 +1,31 @@
+:root {
+  /* Brand */
+  --brand: #6b21a8;
+  --brand-light: #a855f7;
+  --brand-dark: #3b0764;
+  --brand-hover: #7e22ce;
+  --brand-tint: rgba(107, 33, 168, 0.08);
+
+  /* Surfaces */
+  --bg: #ffffff;
+  --surface: #f9f5ff;
+  --surface-alt: #faf0ff;
+  --border: #e9d5ff;
+
+  /* Text */
+  --text: #1a1a2e;
+  --text-muted: #6b6b8a;
+  --text-inverse: #ffffff;
+
+  /* Status */
+  --stale: #b45309;
+  --stale-bg: #fef3c7;
+
+  /* Shadows */
+  --shadow: 0 2px 8px rgba(107, 33, 168, 0.12);
+  --shadow-hover: 0 4px 16px rgba(107, 33, 168, 0.2);
+
+  /* Radius */
+  --radius: 12px;
+  --radius-sm: 8px;
+}

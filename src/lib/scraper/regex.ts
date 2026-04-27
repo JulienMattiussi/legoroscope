@@ -1,0 +1,85 @@
+import type { Sign } from "@/lib/signs";
+import { SIGNS } from "@/lib/signs";
+import { GORAFI_CONFIG } from "@/lib/gorafi.config";
+
+/**
+ * Strategy 3: regex on raw HTML.
+ *
+ * Does not rely on the cheerio DOM parser — works directly on the raw HTML string.
+ * Resilient to tag restructuring as long as the text pattern holds:
+ *   <strong>Sign Name : </strong>prediction text
+ *
+ * Flow:
+ *   1. Fetch the category page and extract the latest article URL via regex.
+ *   2. Fetch the article and extract each sign's prediction via regex.
+ */
+export async function scrapeAllWithRegex(): Promise<Partial<Record<Sign, string>>> {
+  const categoryHtml = await fetchPage(GORAFI_CONFIG.categoryUrl);
+  if (!categoryHtml) return {};
+
+  const articleUrl = findArticleUrlWithRegex(categoryHtml);
+  if (!articleUrl) return {};
+
+  const articleHtml = await fetchPage(articleUrl);
+  if (!articleHtml) return {};
+
+  return extractSignsWithRegex(articleHtml);
+}
+
+export function findArticleUrlWithRegex(html: string): string | null {
+  // Match href="…/YYYY/MM/DD/horoscope-du-…/"
+  const pattern = new RegExp(
+    `href="(https?://[^"]*${GORAFI_CONFIG.articleUrlPattern.source}[^"]*)"`,
+    "i",
+  );
+  const match = html.match(pattern);
+  return match?.[1] ?? null;
+}
+
+export function extractSignsWithRegex(html: string): Partial<Record<Sign, string>> {
+  // Strip script/style blocks to avoid false positives
+  const cleaned = html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ");
+
+  const results: Partial<Record<Sign, string>> = {};
+
+  for (const sign of SIGNS) {
+    const label = sign.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+    // Pattern: <strong>Label : </strong>TEXT until next <
+    const pattern = new RegExp(
+      `<strong>\\s*${label}\\s*:\\s*<\\/strong>([^<]{10,})`,
+      "i",
+    );
+    const match = cleaned.match(pattern);
+    if (match?.[1]) {
+      const text = match[1]
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&nbsp;/g, " ")
+        .replace(/&#\d+;/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (text.length > 10) {
+        results[sign.slug] = text;
+      }
+    }
+  }
+
+  return results;
+}
+
+async function fetchPage(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; Legoroscope/1.0)" },
+      next: { revalidate: 0 },
+    });
+    if (!res.ok) return null;
+    return res.text();
+  } catch {
+    return null;
+  }
+}
