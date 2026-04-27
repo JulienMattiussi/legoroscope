@@ -91,3 +91,22 @@ export async function setUserSign(githubId: string, sign: Sign): Promise<void> {
   }
   await kv.set(userSignKey(githubId), sign);
 }
+
+// User pseudos per sign
+
+function userPseudosKey(githubId: string, sign: Sign): string {
+  return `user:${githubId}:pseudos:${sign}`;
+}
+
+export async function getUserPseudos(githubId: string, sign: Sign): Promise<string[]> {
+  if (!isKvAvailable()) return (localStore.get(userPseudosKey(githubId, sign)) as string[]) ?? [];
+  return (await kv.get<string[]>(userPseudosKey(githubId, sign))) ?? [];
+}
+
+export async function setUserPseudos(githubId: string, sign: Sign, pseudos: string[]): Promise<void> {
+  if (!isKvAvailable()) {
+    localStore.set(userPseudosKey(githubId, sign), pseudos);
+    return;
+  }
+  await kv.set(userPseudosKey(githubId, sign), pseudos);
+}

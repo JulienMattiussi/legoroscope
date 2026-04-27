@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { isValidSign, getSign } from "@/lib/signs";
-import { getCachedHoroscope } from "@/lib/cache";
+import { getCachedHoroscope, getUserPseudos } from "@/lib/cache";
+import { auth } from "@/lib/auth";
+import { PseudoManager } from "@/components/PseudoManager";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +16,8 @@ export default async function SignPage({ params }: Props) {
 
   const meta = getSign(sign)!;
   const data = await getCachedHoroscope(sign);
+  const session = await auth();
+  const initialPseudos = session?.user?.id ? await getUserPseudos(session.user.id, sign) : null;
 
   return (
     <main style={{ maxWidth: "700px", margin: "0 auto", padding: "2rem 1rem" }}>
@@ -78,6 +82,10 @@ export default async function SignPage({ params }: Props) {
         <p style={{ color: "var(--text-muted)", marginTop: "1rem" }}>
           Horoscope non disponible pour le moment.
         </p>
+      )}
+
+      {initialPseudos !== null && (
+        <PseudoManager sign={sign} initialPseudos={initialPseudos} />
       )}
     </main>
   );

@@ -36,10 +36,10 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             {session ? (
               <>
                 <Link
-                  href="/profile"
+                  href="/pseudos"
                   style={{ color: "var(--brand)", textDecoration: "none", fontSize: "0.9rem" }}
                 >
-                  Mon signe
+                  Pseudos
                 </Link>
                 <Link
                   href="/api/auth/signout"

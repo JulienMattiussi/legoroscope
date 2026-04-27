@@ -1,10 +1,12 @@
-import { SIGN_SLUGS } from "@/lib/signs";
-import { getCachedHoroscope, type CachedHoroscope } from "@/lib/cache";
+import { SIGNS, SIGN_SLUGS } from "@/lib/signs";
 import { HoroscopeCard } from "@/components/HoroscopeCard";
 import { auth } from "@/lib/auth";
+import { getUserPseudos } from "@/lib/cache";
+import { headers } from "next/headers";
 import Link from "next/link";
 import Image from "next/image";
 import type { Sign } from "@/lib/signs";
+import type { CachedHoroscope } from "@/lib/cache";
 
 export const dynamic = "force-dynamic";
 
@@ -54,12 +56,29 @@ export default async function HomePage() {
     );
   }
 
-  const horoscopes = await Promise.all(
+  const host = (await headers()).get("host");
+  const baseUrl = `${process.env.NODE_ENV === "production" ? "https" : "http"}://${host}`;
+  const res = await fetch(`${baseUrl}/api/horoscopes`, { cache: "no-store" });
+  const payload: Array<{ sign: Sign } & (CachedHoroscope | { text: null; error: true })> =
+    res.ok ? await res.json() : SIGNS.map((s) => ({ sign: s.slug, text: null, error: true }));
+
+  const pseudoCounts: Partial<Record<Sign, number>> = {};
+  await Promise.all(
     SIGN_SLUGS.map(async (sign) => {
-      const data = await getCachedHoroscope(sign);
-      return { sign, data };
+      const pseudos = await getUserPseudos(session.user.id, sign);
+      if (pseudos.length > 0) pseudoCounts[sign] = pseudos.length;
     }),
   );
+
+  const toCard = (item: (typeof payload)[number]) => ({
+    sign: item.sign,
+    data: "text" in item && item.text ? (item as CachedHoroscope & { sign: Sign }) : null,
+    pseudoCount: pseudoCounts[item.sign] ?? 0,
+  });
+
+  const zodiac = payload.filter((item) => item.sign !== "furet").map(toCard);
+  const furet = payload.find((item) => item.sign === "furet");
+  const furetCard = furet ? toCard(furet) : null;
 
   return (
     <main style={{ maxWidth: "900px", margin: "0 auto", padding: "2rem 1rem" }}>
@@ -69,8 +88,12 @@ export default async function HomePage() {
           fontWeight: 800,
           color: "var(--brand-dark)",
           marginBottom: "0.25rem",
+          display: "flex",
+          alignItems: "center",
+          gap: "0.6rem",
         }}
       >
+        <Image src="/ferret.jpg" alt="" width={36} height={36} style={{ borderRadius: "8px" }} unoptimized />
         Legoroscope
       </h1>
       <p style={{ color: "var(--text-muted)", marginBottom: "2rem" }}>
@@ -79,18 +102,30 @@ export default async function HomePage() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
           gap: "1rem",
         }}
       >
-        {horoscopes.map(({ sign, data }) => (
+        {zodiac.map(({ sign, data, pseudoCount }) => (
           <HoroscopeCard
             key={sign}
             sign={sign as Sign}
             data={data ? ({ ...data, sign } as CachedHoroscope & { sign: Sign }) : null}
+            pseudoCount={pseudoCount}
           />
         ))}
       </div>
+      {furetCard && (
+        <div style={{ display: "flex", justifyContent: "center", marginTop: "1rem" }}>
+          <div style={{ width: "260px" }}>
+            <HoroscopeCard
+              sign="furet"
+              data={furetCard.data ? ({ ...furetCard.data, sign: "furet" } as CachedHoroscope & { sign: Sign }) : null}
+              pseudoCount={furetCard.pseudoCount}
+            />
+          </div>
+        </div>
+      )}
     </main>
   );
 }
