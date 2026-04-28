@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { extractSignsFromArticle } from "@/lib/scraper/css";
-import { extractLatestArticleUrl, extractFromRssInlineContent } from "@/lib/scraper/rss";
+import {
+  extractLatestArticleUrl,
+  extractFromRssInlineContent,
+  extractSignsFromParagraphs,
+} from "@/lib/scraper/rss";
 import { findArticleUrlWithRegex, extractSignsWithRegex } from "@/lib/scraper/regex";
 
 // Minimal HTML mimicking the real Gorafi article structure
@@ -99,6 +103,46 @@ describe("Regex strategy — findArticleUrlWithRegex", () => {
 
   it("returns null if no horoscope URL is found", () => {
     expect(findArticleUrlWithRegex("<html>pas d'horoscope ici</html>")).toBeNull();
+  });
+});
+
+describe("RSS strategy — extractSignsFromParagraphs", () => {
+  it("extracts signs from paragraphs with <strong> labels", () => {
+    const html = `
+      <p><strong>Bélier : </strong>Vous aurez une excellente semaine.</p>
+      <p><strong>Taureau : </strong>Les astres vous sourient.</p>
+    `;
+    const results = extractSignsFromParagraphs(html);
+    expect(results.belier).toBe("Vous aurez une excellente semaine.");
+    expect(results.taureau).toBe("Les astres vous sourient.");
+  });
+
+  it("ignores paragraphs without a <strong> tag", () => {
+    const html = `<p>Un paragraphe ordinaire sans balise strong.</p>`;
+    expect(extractSignsFromParagraphs(html)).toEqual({});
+  });
+
+  it("ignores <strong> text that does not match any sign label", () => {
+    const html = `<p><strong>Introduction : </strong>Voici le texte.</p>`;
+    expect(extractSignsFromParagraphs(html)).toEqual({});
+  });
+
+  it("ignores paragraphs whose prediction is too short", () => {
+    const html = `<p><strong>Lion : </strong>Ok.</p>`;
+    expect(extractSignsFromParagraphs(html)).toEqual({});
+  });
+
+  it("handles case-insensitive sign matching", () => {
+    const html = `<p><strong>LION : </strong>Une prédiction suffisamment longue pour être retenue.</p>`;
+    const results = extractSignsFromParagraphs(html);
+    expect(results.lion).toBeTruthy();
+  });
+
+  it("strips the trailing colon from the strong label", () => {
+    const html = `<p><strong>Verseau :</strong>L'eau sera votre alliée cette semaine sans aucun doute.</p>`;
+    const results = extractSignsFromParagraphs(html);
+    expect(results.verseau).toBeTruthy();
+    expect(results.verseau).not.toContain(":");
   });
 });
 

@@ -109,7 +109,7 @@ Each strategy returns a `StrategyOutput` (`{ results, sourceUrl }`), exported fr
 
 After all strategies fail, the caller falls back to stale cache (returned with `stale: true`).
 
-All pure parsing functions (`extractSignsFromArticle`, `extractSignsWithRegex`, `extractLatestArticleUrl`, `extractFromRssInlineContent`) are exported and covered by unit tests in `tests/unit/scraper-strategies.test.ts`.
+All pure parsing functions (`extractSignsFromArticle`, `extractSignsWithRegex`, `extractLatestArticleUrl`, `extractFromRssInlineContent`, `extractSignsFromParagraphs`) are exported and covered by unit tests in `tests/unit/scraper-strategies.test.ts`.
 
 ## API routes
 
@@ -150,20 +150,20 @@ DISCORD_BOT_TOKEN=        # for registering commands
 
 When `REDIS_URL` is absent (local dev), `cache.ts` falls back to an in-memory `Map` on `global._localStore` that survives Next.js HMR.
 
-## Current status (as of 2026-04-27)
+## Current status (as of 2026-04-28)
 
-The codebase is functionally complete. All checks and unit tests pass (62 tests).
+The codebase is functionally complete. All checks and unit tests pass (93 tests).
 
 ### Done
 
 - **Scraper** — 3 strategies (CSS, RSS, regex) with fallback orchestrator; strategy order in `gorafi.config.ts`; `sourceUrl` (article URL) threaded through scraper → cache → API → UI.
 - **Redis cache** — weekly key (8-day TTL) + stale fallback + global pseudo reverse index; all reads/writes go through `src/lib/cache.ts`; in-memory fallback for local dev.
 - **API routes** — `/api/horoscope/[identifier]` resolves both sign slugs and pseudos; full pseudo CRUD; Discord; auth.
-- **Discord** — Ed25519 verification + command dispatch; `/api/discord` handles PING and `APPLICATION_COMMAND`.
-- **Auth** — NextAuth v5 GitHub OAuth; single allowed login via `ALLOWED_GITHUB_LOGIN` env var.
-- **Frontend** — Home grid (3 columns, 1200px wide, pseudo count badge, copy button, source link in subtitle); sign detail page with pseudo manager; `/pseudos` page (alphabetical grid, trash+confirm); session-aware nav.
-- **Unit tests** — `tests/unit/`: all three scraper strategy parsing functions, orchestrator, cache, discord sig, signs, discord route handler (62 tests).
-- **Component tests** — `tests/component/PseudoGrid.test.tsx`: export (2) + import (6) tests covering the full happy path and all validation branches.
+- **Discord** — Ed25519 verification + command dispatch; `/api/discord` handles PING and `APPLICATION_COMMAND`; autocomplete includes both sign names and user pseudos.
+- **Auth** — NextAuth v5 GitHub OAuth; single allowed login via `ALLOWED_GITHUB_LOGIN` env var; `jwt` callback pins `token.sub` to the stable GitHub numeric profile ID for consistent cross-browser identity.
+- **Frontend** — Home grid (3 columns, 1200px wide, pseudo count badge, copy button, source link in subtitle); sign detail page with pseudo manager; `/pseudos` page (alphabetical grid, trash+confirm); session-aware nav; write errors surfaced via `--error` color notification.
+- **Unit tests** — `tests/unit/`: all five scraper strategy parsing functions, orchestrator, cache (Redis + local store fallback), discord sig, signs, discord route handler (93 tests).
+- **Component tests** — `tests/component/PseudoGrid.test.tsx` (10 tests); `tests/component/PseudoManager.test.tsx` (7 tests).
 
 ### Still missing
 
@@ -209,7 +209,7 @@ Every feature, change, or bug fix must be accompanied by:
 - **String normalization** — use `normalize()` from `src/lib/signs.ts` (strips accents + lowercase). Do not reimplement inline.
 - **HTTP fetching in scrapers** — use `fetchPage()` from `src/lib/scraper/fetch.ts`. Do not add a local `fetchPage` in strategy files.
 - **TypeScript narrowing across async callbacks** — after `if (!session?.user?.id) return`, extract `const userId = session.user.id` before any `async` callback or `Promise.all` to avoid losing the narrowed type.
-- **Case-insensitive string comparison** — use `a.localeCompare(b, "fr", { sensitivity: "base" }) === 0`.
+- **Case-insensitive string comparison** — use `localeEquals(a, b)` from `src/lib/signs.ts`. Do not inline `localeCompare` calls.
 - **Run `make check` before committing.**
 
 ## Commands

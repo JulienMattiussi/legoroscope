@@ -16,7 +16,7 @@ Horoscope hebdomadaire du [Gorafi](https://www.legorafi.fr/category/horoscope/),
 - **NextAuth v5** — GitHub OAuth (accès restreint à un seul compte)
 - **cheerio** — parsing HTML pour la stratégie CSS
 - **tweetnacl** — vérification de signature Ed25519 pour Discord
-- **Vitest** + `@testing-library/react` — tests unitaires et composants (62 tests)
+- **Vitest** + `@testing-library/react` — tests unitaires et composants (93 tests)
 - **Playwright** — tests e2e
 
 ## Démarrage rapide

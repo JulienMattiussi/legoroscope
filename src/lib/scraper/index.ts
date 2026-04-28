@@ -42,7 +42,7 @@ const STRATEGIES: BulkStrategy[] = GORAFI_CONFIG.strategyOrder.map((name) => ({
 }));
 
 /**
- * Scrape all 12 signs using the first strategy that returns a usable result set.
+ * Scrape all 13 signs using the first strategy that returns a usable result set.
  * Falls through to the next strategy if the current one returns fewer than 6 signs.
  * Returns a map of sign → { text, strategy } for every sign that was successfully scraped.
  */

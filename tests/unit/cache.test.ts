@@ -11,7 +11,14 @@ vi.mock("ioredis", () => ({
   default: vi.fn().mockReturnValue({ get: mockGet, set: mockSet, del: mockDel, scan: mockScan }),
 }));
 
-import { getCachedHoroscope, setCachedHoroscope, getAllPseudoNames } from "@/lib/cache";
+import {
+  getCachedHoroscope,
+  setCachedHoroscope,
+  getAllPseudoNames,
+  getUserPseudos,
+  setUserPseudos,
+  setPseudoSign,
+} from "@/lib/cache";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -76,6 +83,58 @@ describe("setCachedHoroscope", () => {
     expect(mockSet.mock.calls[0]?.[3]).toBeGreaterThan(0);
     // stale key: set(key, value) — no TTL args
     expect(mockSet.mock.calls[1]?.[2]).toBeUndefined();
+  });
+});
+
+describe("local store fallback (no REDIS_URL)", () => {
+  const g = global as typeof global & { _localStore?: Map<string, unknown> };
+
+  beforeEach(() => {
+    vi.unstubAllEnvs();
+    delete process.env.REDIS_URL;
+    g._localStore?.clear();
+  });
+
+  it("getCachedHoroscope returns null when store is empty", async () => {
+    expect(await getCachedHoroscope("lion")).toBeNull();
+  });
+
+  it("setCachedHoroscope + getCachedHoroscope round-trips the entry", async () => {
+    await setCachedHoroscope("belier", { text: "Prédiction", strategy: "css" });
+    const result = await getCachedHoroscope("belier");
+    expect(result?.text).toBe("Prédiction");
+    expect(result?.stale).toBeUndefined();
+  });
+
+  it("getCachedHoroscope returns stale when weekly key absent but stale key present", async () => {
+    await setCachedHoroscope("taureau", { text: "Ancien horoscope", strategy: "rss" });
+    // Remove the weekly key to simulate a new week
+    const now = new Date();
+    const jan4 = new Date(now.getFullYear(), 0, 4);
+    const startOfWeek1 = new Date(jan4);
+    startOfWeek1.setDate(jan4.getDate() - ((jan4.getDay() + 6) % 7));
+    const diff = now.getTime() - startOfWeek1.getTime();
+    const week = Math.floor(diff / (7 * 24 * 60 * 60 * 1000)) + 1;
+    g._localStore?.delete(`horoscope:${now.getFullYear()}:${week}:taureau`);
+    const result = await getCachedHoroscope("taureau");
+    expect(result?.text).toBe("Ancien horoscope");
+    expect(result?.stale).toBe(true);
+  });
+
+  it("getUserPseudos + setUserPseudos round-trips the list", async () => {
+    await setUserPseudos("user1", "lion", ["alpha", "beta"]);
+    const result = await getUserPseudos("user1", "lion");
+    expect(result).toEqual(["alpha", "beta"]);
+  });
+
+  it("getAllPseudoNames returns pseudo keys from local store", async () => {
+    await setPseudoSign("michel", "lion", "user1");
+    await setPseudoSign("caroline", "belier", "user1");
+    g._localStore?.set("other:key", "ignored");
+    const names = await getAllPseudoNames();
+    expect(names).toContain("michel");
+    expect(names).toContain("caroline");
+    expect(names).not.toContain("other:key");
   });
 });
 

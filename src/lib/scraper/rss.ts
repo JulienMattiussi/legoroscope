@@ -57,7 +57,7 @@ export function extractFromRssInlineContent(xml: string): Partial<Record<Sign, s
   return extractSignsFromParagraphs(html);
 }
 
-function extractSignsFromParagraphs(html: string): Partial<Record<Sign, string>> {
+export function extractSignsFromParagraphs(html: string): Partial<Record<Sign, string>> {
   const $ = cheerio.load(html);
   const results: Partial<Record<Sign, string>> = {};
 

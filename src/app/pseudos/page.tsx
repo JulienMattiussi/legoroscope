@@ -3,7 +3,6 @@ import { auth } from "@/lib/auth";
 import { SIGN_SLUGS } from "@/lib/signs";
 import { getUserPseudos } from "@/lib/cache";
 import { PseudoGrid, type PseudoEntry } from "@/components/PseudoGrid";
-import type { Sign } from "@/lib/signs";
 
 export const dynamic = "force-dynamic";
 
@@ -15,8 +14,8 @@ export default async function PseudosPage() {
   const entries: PseudoEntry[] = [];
   await Promise.all(
     SIGN_SLUGS.map(async (sign) => {
-      const pseudos = await getUserPseudos(userId, sign as Sign);
-      for (const pseudo of pseudos) entries.push({ pseudo, sign: sign as Sign });
+      const pseudos = await getUserPseudos(userId, sign);
+      for (const pseudo of pseudos) entries.push({ pseudo, sign });
     }),
   );
   entries.sort((a, b) => a.pseudo.localeCompare(b.pseudo, "fr", { sensitivity: "base" }));

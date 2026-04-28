@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUserId } from "@/lib/auth";
-import { isValidSign, SIGN_SLUGS } from "@/lib/signs";
+import { isValidSign, SIGN_SLUGS, localeEquals } from "@/lib/signs";
 import { getUserPseudos, setUserPseudos, setPseudoSign, deletePseudoSign } from "@/lib/cache";
 import type { Sign } from "@/lib/signs";
 
-export type PseudoEntry = { pseudo: string; sign: Sign };
+type PseudoEntry = { pseudo: string; sign: Sign };
 
 export async function GET() {
   const userId = await requireUserId();
@@ -23,8 +23,6 @@ export async function GET() {
   return NextResponse.json({ pseudos: entries });
 }
 
-const isSame = (a: string, b: string) => a.localeCompare(b, "fr", { sensitivity: "base" }) === 0;
-
 export async function POST(req: NextRequest) {
   const userId = await requireUserId();
   if (userId instanceof NextResponse) return userId;
@@ -40,7 +38,7 @@ export async function POST(req: NextRequest) {
       e !== null &&
       typeof (e as { pseudo?: unknown }).pseudo === "string" &&
       isValidSign((e as { sign?: unknown }).sign as string) &&
-      !SIGN_SLUGS.some((s) => isSame(s, ((e as { pseudo: string }).pseudo ?? "").trim())),
+      !SIGN_SLUGS.some((s) => localeEquals(s, ((e as { pseudo: string }).pseudo ?? "").trim())),
   );
 
   try {
@@ -53,11 +51,11 @@ export async function POST(req: NextRequest) {
       await Promise.all(
         SIGN_SLUGS.filter((s) => s !== sign).map(async (otherSign) => {
           const others = await getUserPseudos(userId, otherSign);
-          if (others.some((p) => isSame(p, trimmed))) {
+          if (others.some((p) => localeEquals(p, trimmed))) {
             await setUserPseudos(
               userId,
               otherSign,
-              others.filter((p) => !isSame(p, trimmed)),
+              others.filter((p) => !localeEquals(p, trimmed)),
             );
             await deletePseudoSign(trimmed);
           }
@@ -65,7 +63,7 @@ export async function POST(req: NextRequest) {
       );
 
       const pseudos = await getUserPseudos(userId, sign);
-      if (!pseudos.some((p) => isSame(p, trimmed))) {
+      if (!pseudos.some((p) => localeEquals(p, trimmed))) {
         pseudos.push(trimmed);
         await setUserPseudos(userId, sign, pseudos);
       }

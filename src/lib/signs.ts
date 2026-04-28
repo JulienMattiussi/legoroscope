@@ -30,6 +30,10 @@ export function normalize(s: string): string {
   return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 }
 
+export function localeEquals(a: string, b: string): boolean {
+  return a.localeCompare(b, "fr", { sensitivity: "base" }) === 0;
+}
+
 // Tolerant match: strips accents and accepts singular when slug is plural.
 // "poisson" → poissons, "bélier" → belier, "Gémeaux" → gemeaux
 export function findSignByInput(input: string): (typeof SIGNS)[number] | null {
