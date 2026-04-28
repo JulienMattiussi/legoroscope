@@ -10,6 +10,7 @@ vi.mock("@/lib/cache", () => ({
   getCachedHoroscope: vi.fn(),
   setCachedHoroscope: vi.fn().mockResolvedValue(undefined),
   getPseudoSign: vi.fn().mockResolvedValue(null),
+  getAllPseudoNames: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock("@/lib/scraper", () => ({
@@ -17,7 +18,7 @@ vi.mock("@/lib/scraper", () => ({
 }));
 
 import { POST } from "@/app/api/discord/route";
-import { getCachedHoroscope, getPseudoSign } from "@/lib/cache";
+import { getCachedHoroscope, getPseudoSign, getAllPseudoNames } from "@/lib/cache";
 
 function makeRequest(body: object): NextRequest {
   const json = JSON.stringify(body);
@@ -112,5 +113,38 @@ describe("Discord route — multiple signs", () => {
     expect(data.content).toContain("Lion");
     expect(data.content).toContain("Bélier");
     expect(data.content.split("\n")).toHaveLength(3);
+  });
+});
+
+describe("Discord route — autocomplete", () => {
+  it("returns sign choices for a sign prefix", async () => {
+    const res = await POST(
+      makeRequest({ type: 4, data: { options: [{ name: "signe", value: "li", focused: true }] } }),
+    );
+    const { data } = await res.json();
+    expect(data.choices.map((c: { value: string }) => c.value)).toContain("lion");
+  });
+
+  it("includes pseudo choices when pseudos match the prefix", async () => {
+    vi.mocked(getAllPseudoNames).mockResolvedValueOnce(["michel", "michelle", "caroline"]);
+    const res = await POST(
+      makeRequest({ type: 4, data: { options: [{ name: "signe", value: "mi", focused: true }] } }),
+    );
+    const { data } = await res.json();
+    const values = data.choices.map((c: { value: string }) => c.value);
+    expect(values).toContain("michel");
+    expect(values).toContain("michelle");
+    expect(values).not.toContain("caroline");
+  });
+
+  it("returns at most 25 choices", async () => {
+    vi.mocked(getAllPseudoNames).mockResolvedValueOnce(
+      Array.from({ length: 30 }, (_, i) => `pseudo${i}`),
+    );
+    const res = await POST(
+      makeRequest({ type: 4, data: { options: [{ name: "signe", value: "p", focused: true }] } }),
+    );
+    const { data } = await res.json();
+    expect(data.choices.length).toBeLessThanOrEqual(25);
   });
 });

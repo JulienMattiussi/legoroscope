@@ -1,16 +1,17 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-const { mockGet, mockSet, mockDel } = vi.hoisted(() => ({
+const { mockGet, mockSet, mockDel, mockScan } = vi.hoisted(() => ({
   mockGet: vi.fn(),
   mockSet: vi.fn(),
   mockDel: vi.fn(),
+  mockScan: vi.fn(),
 }));
 
 vi.mock("ioredis", () => ({
-  default: vi.fn().mockReturnValue({ get: mockGet, set: mockSet, del: mockDel }),
+  default: vi.fn().mockReturnValue({ get: mockGet, set: mockSet, del: mockDel, scan: mockScan }),
 }));
 
-import { getCachedHoroscope, setCachedHoroscope } from "@/lib/cache";
+import { getCachedHoroscope, setCachedHoroscope, getAllPseudoNames } from "@/lib/cache";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -75,5 +76,29 @@ describe("setCachedHoroscope", () => {
     expect(mockSet.mock.calls[0]?.[3]).toBeGreaterThan(0);
     // stale key: set(key, value) — no TTL args
     expect(mockSet.mock.calls[1]?.[2]).toBeUndefined();
+  });
+});
+
+describe("getAllPseudoNames", () => {
+  it("returns pseudo names extracted from Redis keys", async () => {
+    mockScan.mockResolvedValueOnce(["0", ["pseudo:michel", "pseudo:caroline"]]);
+    const names = await getAllPseudoNames();
+    expect(names).toEqual(["michel", "caroline"]);
+    expect(mockScan).toHaveBeenCalledWith("0", "MATCH", "pseudo:*", "COUNT", 100);
+  });
+
+  it("iterates until cursor is 0", async () => {
+    mockScan
+      .mockResolvedValueOnce(["42", ["pseudo:michel"]])
+      .mockResolvedValueOnce(["0", ["pseudo:caroline"]]);
+    const names = await getAllPseudoNames();
+    expect(names).toEqual(["michel", "caroline"]);
+    expect(mockScan).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns empty array when no pseudo keys exist", async () => {
+    mockScan.mockResolvedValueOnce(["0", []]);
+    const names = await getAllPseudoNames();
+    expect(names).toEqual([]);
   });
 });

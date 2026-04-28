@@ -1,8 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyDiscordSignature, handleInteraction, autocompleteSign } from "@/lib/discord";
+import {
+  verifyDiscordSignature,
+  handleInteraction,
+  autocompleteSign,
+  autocompletePseudos,
+} from "@/lib/discord";
 import type { SignResult } from "@/lib/discord";
 import { findSignByInput, getSign, isValidSign } from "@/lib/signs";
-import { getCachedHoroscope, setCachedHoroscope, getPseudoSign } from "@/lib/cache";
+import {
+  getCachedHoroscope,
+  setCachedHoroscope,
+  getPseudoSign,
+  getAllPseudoNames,
+} from "@/lib/cache";
 import { scrapeAllHoroscopes } from "@/lib/scraper";
 import type { Sign } from "@/lib/signs";
 
@@ -27,10 +37,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ type: 1 });
   }
 
-  // Autocomplete — filter signs matching what the user has typed so far
+  // Autocomplete — signs + pseudos matching what the user has typed so far
   if (interaction.type === 4) {
     const typed = options.find((o) => o.focused)?.value ?? "";
-    return NextResponse.json({ type: 8, data: { choices: autocompleteSign(typed) } });
+    const allPseudos = await getAllPseudoNames();
+    const choices = [...autocompleteSign(typed), ...autocompletePseudos(typed, allPseudos)].slice(
+      0,
+      25,
+    );
+    return NextResponse.json({ type: 8, data: { choices } });
   }
 
   // Collect all provided sign inputs

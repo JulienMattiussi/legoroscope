@@ -58,6 +58,15 @@ export function autocompleteSign(typed: string): { name: string; value: string }
   }));
 }
 
+export function autocompletePseudos(
+  typed: string,
+  allPseudos: string[],
+): { name: string; value: string }[] {
+  const n = normalize(typed);
+  if (!n) return [];
+  return allPseudos.filter((p) => normalize(p).startsWith(n)).map((p) => ({ name: p, value: p }));
+}
+
 export function handleInteraction(
   interaction: DiscordInteraction,
   results: SignResult[],

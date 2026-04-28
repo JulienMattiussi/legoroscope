@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { handleInteraction, autocompleteSign } from "@/lib/discord";
+import { handleInteraction, autocompleteSign, autocompletePseudos } from "@/lib/discord";
 
 const sign = (label: string, horoscope: string | null) => ({
   label,
@@ -73,5 +73,30 @@ describe("autocompleteSign", () => {
 
   it("returns empty array for unknown prefix", () => {
     expect(autocompleteSign("xyz")).toHaveLength(0);
+  });
+});
+
+describe("autocompletePseudos", () => {
+  const PSEUDOS = ["michel", "Michelle", "caroline", "Caro"];
+
+  it("returns empty array when typed is empty", () => {
+    expect(autocompletePseudos("", PSEUDOS)).toHaveLength(0);
+  });
+
+  it("filters pseudos by prefix (case-insensitive, accent-insensitive)", () => {
+    const results = autocompletePseudos("mi", PSEUDOS);
+    expect(results.map((r) => r.value)).toContain("michel");
+    expect(results.map((r) => r.value)).toContain("Michelle");
+    expect(results.map((r) => r.value)).not.toContain("caroline");
+  });
+
+  it("uses the pseudo as both name and value", () => {
+    const result = autocompletePseudos("car", PSEUDOS)[0]!;
+    expect(result.name).toBe("caroline");
+    expect(result.value).toBe("caroline");
+  });
+
+  it("returns empty array when no pseudo matches", () => {
+    expect(autocompletePseudos("xyz", PSEUDOS)).toHaveLength(0);
   });
 });

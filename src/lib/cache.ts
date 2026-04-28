@@ -140,3 +140,20 @@ export async function deletePseudoSign(pseudo: string): Promise<void> {
   }
   await redisDel(pseudoSignKey(pseudo));
 }
+
+export async function getAllPseudoNames(): Promise<string[]> {
+  if (!isKvAvailable()) {
+    return Array.from(localStore.keys())
+      .filter((k) => k.startsWith("pseudo:"))
+      .map((k) => k.slice("pseudo:".length));
+  }
+  const redis = getRedis();
+  const names: string[] = [];
+  let cursor = "0";
+  do {
+    const [nextCursor, keys] = await redis.scan(cursor, "MATCH", "pseudo:*", "COUNT", 100);
+    cursor = nextCursor;
+    names.push(...keys.map((k) => k.slice("pseudo:".length)));
+  } while (cursor !== "0");
+  return names;
+}
