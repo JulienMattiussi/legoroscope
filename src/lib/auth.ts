@@ -10,6 +10,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (!allowed) return true;
       return profile?.login === allowed;
     },
+    jwt({ token, profile }) {
+      // Pin token.sub to the stable GitHub numeric ID on every sign-in.
+      // Without this, NextAuth v5 may generate a different sub per session.
+      if (profile?.id !== undefined) {
+        token.sub = String(profile.id);
+      }
+      return token;
+    },
     session({ session, token }) {
       if (token.sub) {
         session.user.id = token.sub;
