@@ -76,8 +76,8 @@ export function handleInteraction(
   if (interaction.type === APPLICATION_COMMAND) {
     const lines = results.map(({ emoji, label, horoscope }) =>
       horoscope
-        ? `${emoji} **${label}** — ${horoscope}`
-        : `${emoji} **${label}** — *non disponible*`,
+        ? `${emoji} **${label}** - ${horoscope}`
+        : `${emoji} **${label}** - *non disponible*`,
     );
     return { type: CHANNEL_MESSAGE_WITH_SOURCE, data: { content: lines.join("\n") } };
   }

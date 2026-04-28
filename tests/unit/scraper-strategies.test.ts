@@ -24,7 +24,7 @@ const CATEGORY_HTML = `
 </body></html>
 `;
 
-describe("CSS strategy — extractSignsFromArticle", () => {
+describe("CSS strategy - extractSignsFromArticle", () => {
   it("extracts known signs from article HTML", () => {
     const results = extractSignsFromArticle(ARTICLE_HTML);
     expect(results.belier).toBe("Vous aurez une excellente semaine.");
@@ -67,7 +67,7 @@ const RSS_WITH_DESCRIPTION_ONLY = `<?xml version="1.0"?>
 const RSS_NO_LINK = `<?xml version="1.0"?>
 <rss><channel><item><title>no link here</title></item></channel></rss>`;
 
-describe("RSS strategy — extractLatestArticleUrl", () => {
+describe("RSS strategy - extractLatestArticleUrl", () => {
   it("extracts the article URL from the first <item>", () => {
     const url = extractLatestArticleUrl(RSS_WITH_LINK);
     expect(url).toBe("https://www.legorafi.fr/2026/04/27/horoscope-du-27-avril-2026/");
@@ -78,7 +78,7 @@ describe("RSS strategy — extractLatestArticleUrl", () => {
   });
 });
 
-describe("RSS strategy — extractFromRssInlineContent", () => {
+describe("RSS strategy - extractFromRssInlineContent", () => {
   it("extracts signs from <content:encoded>", () => {
     const results = extractFromRssInlineContent(RSS_WITH_LINK);
     expect(results.belier).toBe("Vous aurez une excellente semaine.");
@@ -95,7 +95,7 @@ describe("RSS strategy — extractFromRssInlineContent", () => {
   });
 });
 
-describe("Regex strategy — findArticleUrlWithRegex", () => {
+describe("Regex strategy - findArticleUrlWithRegex", () => {
   it("finds the horoscope article URL in category page HTML", () => {
     const url = findArticleUrlWithRegex(CATEGORY_HTML);
     expect(url).toBe("https://www.legorafi.fr/2026/04/27/horoscope-du-27-avril-2026/");
@@ -106,7 +106,7 @@ describe("Regex strategy — findArticleUrlWithRegex", () => {
   });
 });
 
-describe("RSS strategy — extractSignsFromParagraphs", () => {
+describe("RSS strategy - extractSignsFromParagraphs", () => {
   it("extracts signs from paragraphs with <strong> labels", () => {
     const html = `
       <p><strong>Bélier : </strong>Vous aurez une excellente semaine.</p>
@@ -146,7 +146,7 @@ describe("RSS strategy — extractSignsFromParagraphs", () => {
   });
 });
 
-describe("Regex strategy — extractSignsWithRegex", () => {
+describe("Regex strategy - extractSignsWithRegex", () => {
   it("extracts known signs from article HTML without a DOM parser", () => {
     const results = extractSignsWithRegex(ARTICLE_HTML);
     expect(results.belier).toBe("Vous aurez une excellente semaine.");

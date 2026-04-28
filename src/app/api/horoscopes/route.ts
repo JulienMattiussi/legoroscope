@@ -16,7 +16,7 @@ export async function GET() {
 
   if (missing.length > 0) {
     try {
-      // At least one sign is uncached — fetch the article once for all missing signs
+      // At least one sign is uncached - fetch the article once for all missing signs
       const scraped = await scrapeAllHoroscopes();
       const now = new Date().toISOString();
       for (const [s, result] of Object.entries(scraped)) {
@@ -26,7 +26,7 @@ export async function GET() {
         }
       }
     } catch {
-      // scraping failed — return whatever is in cache (stale or null)
+      // scraping failed - return whatever is in cache (stale or null)
     }
   }
 

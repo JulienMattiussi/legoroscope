@@ -3,7 +3,7 @@
  * Update URLs here if the site moves or restructures, and selectors if the DOM changes.
  */
 export const GORAFI_CONFIG = {
-  /** Category archive page — lists the weekly horoscope articles */
+  /** Category archive page - lists the weekly horoscope articles */
   categoryUrl: "https://www.legorafi.fr/category/horoscope-2/",
 
   /** RSS/Atom feed for the horoscope category */
@@ -33,9 +33,9 @@ export const GORAFI_CONFIG = {
 
   /**
    * Scraping strategy order. The first strategy that returns ≥ 6 signs wins.
-   * "rss"   — 1 HTTP request when inline content is complete (cheapest)
-   * "css"   — 2 HTTP requests, most robust against DOM changes
-   * "regex" — 2 HTTP requests, no DOM parser, resilient fallback
+   * "rss"   - 1 HTTP request when inline content is complete (cheapest)
+   * "css"   - 2 HTTP requests, most robust against DOM changes
+   * "regex" - 2 HTTP requests, no DOM parser, resilient fallback
    */
   strategyOrder: ["css", "rss", "regex"] as const,
 } as const;

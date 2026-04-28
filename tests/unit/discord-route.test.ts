@@ -36,7 +36,7 @@ beforeEach(() => {
   vi.mocked(getAliasIndex).mockResolvedValue(null);
 });
 
-describe("Discord route — multiple signs", () => {
+describe("Discord route - multiple signs", () => {
   it("returns one line per sign", async () => {
     const res = await POST(
       makeRequest({
@@ -83,7 +83,7 @@ describe("Discord route — multiple signs", () => {
     expect(data.content).toContain("Scorpion");
   });
 
-  it("resolves an alias covering multiple signs — returns one line per sign", async () => {
+  it("resolves an alias covering multiple signs - returns one line per sign", async () => {
     vi.mocked(getAliasIndex).mockResolvedValue({ signs: ["lion", "cancer"], userId: "u1" });
     const res = await POST(
       makeRequest({
@@ -149,7 +149,7 @@ describe("Discord route — multiple signs", () => {
   });
 });
 
-describe("Discord route — autocomplete", () => {
+describe("Discord route - autocomplete", () => {
   it("returns sign choices for a sign prefix", async () => {
     const res = await POST(
       makeRequest({ type: 4, data: { options: [{ name: "signe", value: "li", focused: true }] } }),

@@ -24,7 +24,8 @@
       "Bash(@vercel/kv)",
       "Bash(KV_REST_API_URL)",
       "Bash(KV_REST_API_TOKEN)",
-      "Read(//home/julien/**)"
+      "Read(//home/julien/**)",
+      "Bash(xargs sed *)"
     ],
     "additionalDirectories": [
       "/home/julien/Documents/MyRepos/goroscope",

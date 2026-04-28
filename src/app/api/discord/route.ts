@@ -32,12 +32,12 @@ export async function POST(req: NextRequest) {
   const interaction = JSON.parse(rawBody);
   const options = (interaction.data?.options ?? []) as Option[];
 
-  // Discord PING — must respond with PONG
+  // Discord PING - must respond with PONG
   if (interaction.type === 1) {
     return NextResponse.json({ type: 1 });
   }
 
-  // Autocomplete — signs + aliases matching what the user has typed so far
+  // Autocomplete - signs + aliases matching what the user has typed so far
   if (interaction.type === 4) {
     const typed = options.find((o) => o.focused)?.value ?? "";
     const allAliases = await getAllAliasNames();
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
       }
       continue;
     }
-    // Try alias — may resolve to multiple signs
+    // Try alias - may resolve to multiple signs
     const aliasEntry = await getAliasIndex(input);
     if (aliasEntry) {
       for (const s of aliasEntry.signs) {
@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
         if (isValidSign(s) && result) await setCachedHoroscope(s, result);
       }
     } catch {
-      // scraping failed — signs without a cache entry will show as non disponible
+      // scraping failed - signs without a cache entry will show as non disponible
     }
   }
 

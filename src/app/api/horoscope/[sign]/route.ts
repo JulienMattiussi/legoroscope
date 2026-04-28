@@ -40,7 +40,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ sig
     }
   }
 
-  // Try alias — returns one horoscope per sign covered by the alias
+  // Try alias - returns one horoscope per sign covered by the alias
   const aliasEntry = await getAliasIndex(param);
   if (aliasEntry && aliasEntry.signs.length > 0) {
     try {

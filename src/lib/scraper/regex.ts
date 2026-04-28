@@ -7,7 +7,7 @@ import { fetchPage } from "./fetch";
 /**
  * Strategy 3: regex on raw HTML.
  *
- * Does not rely on the cheerio DOM parser — works directly on the raw HTML string.
+ * Does not rely on the cheerio DOM parser - works directly on the raw HTML string.
  * Resilient to tag restructuring as long as the text pattern holds:
  *   <strong>Sign Name : </strong>prediction text
  *

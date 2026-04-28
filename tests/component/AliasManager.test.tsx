@@ -39,7 +39,7 @@ beforeEach(() => {
   );
 });
 
-describe("AliasManager — display", () => {
+describe("AliasManager - display", () => {
   it("renders alias names", () => {
     render(<AliasManager initialAliases={ALIASES} />);
     expect(screen.getByText("michel")).toBeTruthy();
@@ -64,7 +64,7 @@ describe("AliasManager — display", () => {
   });
 });
 
-describe("AliasManager — create", () => {
+describe("AliasManager - create", () => {
   it("creates a new alias and adds it to the list", async () => {
     vi.mocked(fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: true,
@@ -111,7 +111,7 @@ describe("AliasManager — create", () => {
   });
 });
 
-describe("AliasManager — remove sign", () => {
+describe("AliasManager - remove sign", () => {
   it("removes a sign from an alias via the × button", async () => {
     vi.mocked(fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: true,
@@ -135,7 +135,7 @@ describe("AliasManager — remove sign", () => {
   });
 });
 
-describe("AliasManager — delete", () => {
+describe("AliasManager - delete", () => {
   it("requires confirmation before deleting", async () => {
     render(<AliasManager initialAliases={ALIASES} />);
     fireEvent.click(screen.getByLabelText("Supprimer l'alias michel"));
@@ -175,7 +175,7 @@ describe("AliasManager — delete", () => {
   });
 });
 
-describe("AliasManager — export", () => {
+describe("AliasManager - export", () => {
   it("triggers a JSON download", () => {
     render(<AliasManager initialAliases={ALIASES} />);
     fireEvent.click(screen.getByText("Exporter"));
@@ -191,7 +191,7 @@ describe("AliasManager — export", () => {
   });
 });
 
-describe("AliasManager — import", () => {
+describe("AliasManager - import", () => {
   it("imports new-format aliases and reloads the list", async () => {
     const newFormat: AliasData[] = [{ alias: "sarah", signs: ["verseau", "lion"] }];
     vi.mocked(fetch as ReturnType<typeof vi.fn>)

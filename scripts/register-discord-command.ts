@@ -1,5 +1,5 @@
 /**
- * One-off script — registers the /horoscope slash command with Discord.
+ * One-off script - registers the /horoscope slash command with Discord.
  * Run once per environment (or after changing the command definition).
  *
  *   make discord-register
@@ -88,6 +88,6 @@ function loadEnvFile(path: string) {
       if (!(key in process.env)) process.env[key] = value;
     }
   } catch {
-    // .env.local absent — rely on process.env already being set
+    // .env.local absent - rely on process.env already being set
   }
 }

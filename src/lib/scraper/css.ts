@@ -65,7 +65,7 @@ async function findLatestArticleUrl(): Promise<string | null> {
     const href = $(el).attr("href") ?? "";
     if (GORAFI_CONFIG.articleUrlPattern.test(href)) {
       found = href;
-      return false; // break — first match is the most recent
+      return false; // break - first match is the most recent
     }
   });
 

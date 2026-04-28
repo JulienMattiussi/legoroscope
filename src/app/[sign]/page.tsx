@@ -54,7 +54,7 @@ export default async function SignPage({ params }: Props) {
             margin: "0.75rem 0",
           }}
         >
-          Données de la semaine précédente — le scraping est temporairement indisponible.
+          Données de la semaine précédente - le scraping est temporairement indisponible.
         </p>
       )}
 

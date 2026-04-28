@@ -15,7 +15,7 @@ import { fetchPage } from "./fetch";
  * (or parse the inline HTML if it's complete enough).
  *
  * Falls back to fetching the article URL from the RSS item and re-using the CSS
- * extraction logic on the full page — this makes the two strategies complementary
+ * extraction logic on the full page - this makes the two strategies complementary
  * rather than redundant.
  */
 export async function scrapeAllWithRSS(): Promise<StrategyOutput> {
@@ -30,7 +30,7 @@ export async function scrapeAllWithRSS(): Promise<StrategyOutput> {
   if (Object.keys(inlineResults).length >= 6)
     return { results: inlineResults, sourceUrl: articleUrl };
 
-  // RSS content was incomplete — fetch the full article and re-use CSS extraction
+  // RSS content was incomplete - fetch the full article and re-use CSS extraction
   const html = await fetchPage(articleUrl);
   if (!html) return { results: {} };
 

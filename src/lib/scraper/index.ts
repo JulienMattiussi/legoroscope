@@ -51,7 +51,7 @@ export async function scrapeAllHoroscopes(): Promise<Partial<Record<Sign, Scrape
     try {
       const { results, sourceUrl } = await fn();
       const entries = Object.entries(results) as [Sign, string][];
-      if (entries.length < 6) continue; // too few signs — try next strategy
+      if (entries.length < 6) continue; // too few signs - try next strategy
 
       const mapped: Partial<Record<Sign, ScrapeResult>> = {};
       for (const [sign, text] of entries) {
@@ -69,7 +69,7 @@ export async function scrapeAllHoroscopes(): Promise<Partial<Record<Sign, Scrape
 
 /**
  * Scrape a single sign.
- * Runs scrapeAllHoroscopes internally — callers should prefer that for bulk use
+ * Runs scrapeAllHoroscopes internally - callers should prefer that for bulk use
  * to avoid re-fetching the article multiple times.
  */
 export async function scrapeHoroscope(sign: Sign): Promise<ScrapeResult> {
@@ -77,7 +77,7 @@ export async function scrapeHoroscope(sign: Sign): Promise<ScrapeResult> {
   const result = all[sign];
   if (result) return result;
 
-  // Partial result — the sign was not found even though some others were
+  // Partial result - the sign was not found even though some others were
   throw new ScrapingError(sign);
 }
 

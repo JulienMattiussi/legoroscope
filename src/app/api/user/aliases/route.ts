@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
     const firstNew = entries.find(isNew);
 
     if (firstOld && !firstNew) {
-      // Old pseudo format — group by pseudo name, merge signs
+      // Old pseudo format - group by pseudo name, merge signs
       const map = new Map<string, Set<Sign>>();
       for (const e of entries) {
         if (!isOld(e)) continue;
