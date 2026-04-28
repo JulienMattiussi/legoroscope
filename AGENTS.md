@@ -194,7 +194,7 @@ Every feature, change, or bug fix must be accompanied by:
 
 ### General rules
 
-- **No em dashes** - never use `-` (U+2014). Use a regular hyphen `-` instead.
+- **No em dashes** - never use `—` (U+2014). Use a regular hyphen `-` instead.
 - **TypeScript strict** - no implicit `any`, `noUncheckedIndexedAccess` enabled.
 - **Code and comments in English.** UI copy can be in French since the product is French.
 - **Theme values in `src/styles/theme.css`** as CSS custom properties. Never hardcode colors in components - always `var(--token)`.

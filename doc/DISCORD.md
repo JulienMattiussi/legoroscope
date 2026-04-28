@@ -1,8 +1,8 @@
 # Discord setup
 
-Le bot utilise les **Discord Interactions** (webhooks) — pas de gateway persistant. Discord envoie un `POST` à l'endpoint `/api/discord` à chaque commande slash.
+Le bot utilise les **Discord Interactions** (webhooks) - pas de gateway persistant. Discord envoie un `POST` à l'endpoint `/api/discord` à chaque commande slash.
 
-La commande est enregistrée en mode **User Install** : une fois autorisée sur ton compte Discord, elle est disponible partout — serveurs, DMs, conversations de groupe — même sans que le bot soit membre du serveur.
+La commande est enregistrée en mode **User Install** : une fois autorisée sur ton compte Discord, elle est disponible partout - serveurs, DMs, conversations de groupe - même sans que le bot soit membre du serveur.
 
 ---
 
@@ -44,7 +44,7 @@ En prod sur Vercel, l'URL sera :
 https://<ton-domaine>.vercel.app/api/discord
 ```
 
-En dev local, il faut un tunnel (ex : `ngrok http 6677`) — uniquement nécessaire pour valider la configuration, pas pour le développement quotidien.
+En dev local, il faut un tunnel (ex : `ngrok http 6677`) - uniquement nécessaire pour valider la configuration, pas pour le développement quotidien.
 
 ## 5. Configurer l'endpoint dans Discord
 
@@ -54,7 +54,7 @@ Dans **General Information** → **Interactions Endpoint URL** :
 https://<ton-domaine>.vercel.app/api/discord
 ```
 
-Discord envoie un PING de vérification à la sauvegarde. L'app doit répondre `{ type: 1 }` avec une signature Ed25519 valide — c'est géré dans `src/app/api/discord/route.ts`.
+Discord envoie un PING de vérification à la sauvegarde. L'app doit répondre `{ type: 1 }` avec une signature Ed25519 valide - c'est géré dans `src/app/api/discord/route.ts`.
 
 ## 6. Enregistrer la commande slash
 
@@ -64,7 +64,7 @@ Avec les variables d'environnement remplies dans `.env.local`, lancer :
 make discord-register
 ```
 
-Ce script appelle l'API REST Discord pour déclarer la commande `/horoscope` globalement. C'est une opération **one-shot** — à relancer uniquement si la définition de la commande change.
+Ce script appelle l'API REST Discord pour déclarer la commande `/horoscope` globalement. C'est une opération **one-shot** - à relancer uniquement si la définition de la commande change.
 
 La commande accepte :
 

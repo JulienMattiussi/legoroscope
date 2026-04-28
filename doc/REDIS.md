@@ -2,7 +2,7 @@
 
 Le cache hebdomadaire des horoscopes et l'index des pseudos sont stockés dans Redis Cloud, connecté via Vercel Storage (option **Serverless Redis**).
 
-En développement local, si `REDIS_URL` est absente, `cache.ts` bascule automatiquement sur un store en mémoire — aucune configuration Redis n'est nécessaire pour développer.
+En développement local, si `REDIS_URL` est absente, `cache.ts` bascule automatiquement sur un store en mémoire - aucune configuration Redis n'est nécessaire pour développer.
 
 ---
 
@@ -10,7 +10,7 @@ En développement local, si `REDIS_URL` est absente, `cache.ts` bascule automati
 
 1. Aller sur [vercel.com](https://vercel.com) → ton projet → onglet **Storage**
 2. Cliquer **Create Database**
-3. Choisir **Redis** (Redis Cloud — Serverless Redis)
+3. Choisir **Redis** (Redis Cloud - Serverless Redis)
 4. Donner un nom (`legoroscope-redis`), choisir une région proche
 5. Cliquer **Create**
 
@@ -38,7 +38,7 @@ Cela écrase `.env.local` avec toutes les variables du projet Vercel, `REDIS_URL
 
 | Clé                              | Valeur                                              |
 | -------------------------------- | --------------------------------------------------- |
-| `horoscope:{year}:{week}:{sign}` | `{ text, fetchedAt, strategy, sourceUrl }` — TTL 8j |
+| `horoscope:{year}:{week}:{sign}` | `{ text, fetchedAt, strategy, sourceUrl }` - TTL 8j |
 | `horoscope:stale:{sign}`         | Dernière valeur connue, sans TTL                    |
 | `user:{githubId}:pseudos:{sign}` | `["pseudo1", "pseudo2"]`                            |
-| `pseudo:{lowercase}`             | `{ sign, userId }` — index global pseudo→signe      |
+| `pseudo:{lowercase}`             | `{ sign, userId }` - index global pseudo→signe      |

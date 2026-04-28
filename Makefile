@@ -15,9 +15,9 @@ dev: ## Start Next.js dev server in foreground (http://localhost:6677)
 	npm run dev
 
 start: ## Start Next.js dev server in background
-	@if lsof -ti:6677 > /dev/null 2>&1; then echo "Port 6677 already in use — run 'make stop' first."; exit 1; fi
+	@if lsof -ti:6677 > /dev/null 2>&1; then echo "Port 6677 already in use - run 'make stop' first."; exit 1; fi
 	npm run dev > .dev.log 2>&1 & echo $$! > .pid
-	@echo "Dev server started → http://localhost:6677 (PID $$(cat .pid)) — logs in .dev.log"
+	@echo "Dev server started → http://localhost:6677 (PID $$(cat .pid)) - logs in .dev.log"
 
 stop: ## Stop the background dev server
 	@if lsof -ti:6677 > /dev/null 2>&1; then lsof -ti:6677 | xargs kill && rm -f .pid && echo "Dev server stopped."; else rm -f .pid && echo "No server running."; fi

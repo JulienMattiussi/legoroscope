@@ -4,16 +4,16 @@
 
 Avoir configuré les services dans l'ordre suivant (voir les docs dédiées) :
 
-1. [GitHub OAuth](OAUTH.md) — pour l'authentification
-2. [Redis Cloud](REDIS.md) — pour le cache
-3. [Discord](DISCORD.md) — pour le bot slash command
+1. [GitHub OAuth](OAUTH.md) - pour l'authentification
+2. [Redis Cloud](REDIS.md) - pour le cache
+3. [Discord](DISCORD.md) - pour le bot slash command
 
 ## 1. Créer le projet sur Vercel
 
 1. Aller sur [vercel.com](https://vercel.com) → **Add New Project**
 2. Importer le dépôt GitHub `legoroscope`
 3. Laisser les paramètres par défaut (Next.js détecté automatiquement)
-4. Cliquer **Deploy** — le premier déploiement échouera si les variables d'environnement ne sont pas encore renseignées, c'est normal
+4. Cliquer **Deploy** - le premier déploiement échouera si les variables d'environnement ne sont pas encore renseignées, c'est normal
 
 ## 2. Ajouter les variables d'environnement
 
@@ -30,7 +30,7 @@ Dans le dashboard Vercel → projet → **Settings** → **Environment Variables
 | `DISCORD_APPLICATION_ID` | ID de l'application Discord                  |
 | `DISCORD_BOT_TOKEN`      | Token bot Discord                            |
 
-`REDIS_URL` est injectée automatiquement quand le store est connecté au projet (voir [REDIS.md](REDIS.md)) — pas besoin de la copier à la main.
+`REDIS_URL` est injectée automatiquement quand le store est connecté au projet (voir [REDIS.md](REDIS.md)) - pas besoin de la copier à la main.
 
 ## 3. Redéployer
 

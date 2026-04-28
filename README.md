@@ -4,20 +4,20 @@ Horoscope hebdomadaire du [Gorafi](https://www.legorafi.fr/category/horoscope/),
 
 ## Fonctionnalités
 
-- **Scraping** — 3 stratégies (CSS, RSS, regex) avec fallback automatique ; cache hebdomadaire dans Redis ; fallback sur la dernière valeur connue si tout échoue.
-- **API REST** — un endpoint par signe, un endpoint global pour tous les signes, résolution d'alias (un alias mappé à un ou plusieurs signes → retourne les horoscopes correspondants).
-- **Bot Discord** — commande slash `/horoscope` via webhook Interactions (sans gateway persistant) ; jusqu'à 5 signes ou alias en une seule commande ; si un alias couvre plusieurs signes, tous sont affichés ; autocomplete ; fonctionne en DM et hors serveur (User Install).
-- **Web** — grille des 13 signes avec compteur d'alias par signe, page de détail, page `/aliases` pour créer et gérer les alias (export/import JSON), connexion GitHub OAuth.
+- **Scraping** - 3 stratégies (CSS, RSS, regex) avec fallback automatique ; cache hebdomadaire dans Redis ; fallback sur la dernière valeur connue si tout échoue.
+- **API REST** - un endpoint par signe, un endpoint global pour tous les signes, résolution d'alias (un alias mappé à un ou plusieurs signes → retourne les horoscopes correspondants).
+- **Bot Discord** - commande slash `/horoscope` via webhook Interactions (sans gateway persistant) ; jusqu'à 5 signes ou alias en une seule commande ; si un alias couvre plusieurs signes, tous sont affichés ; autocomplete ; fonctionne en DM et hors serveur (User Install).
+- **Web** - grille des 13 signes avec compteur d'alias par signe, page de détail, page `/aliases` pour créer et gérer les alias (export/import JSON), connexion GitHub OAuth.
 
 ## Stack
 
-- **Next.js 15** — App Router, TypeScript strict
-- **Redis Cloud** (`ioredis`) — cache hebdomadaire (TTL 8 jours) + index global alias→signes
-- **NextAuth v5** — GitHub OAuth (accès restreint à un seul compte)
-- **cheerio** — parsing HTML pour la stratégie CSS
-- **tweetnacl** — vérification de signature Ed25519 pour Discord
-- **Vitest** + `@testing-library/react` — tests unitaires et composants (110 tests)
-- **Playwright** — tests e2e
+- **Next.js 15** - App Router, TypeScript strict
+- **Redis Cloud** (`ioredis`) - cache hebdomadaire (TTL 8 jours) + index global alias→signes
+- **NextAuth v5** - GitHub OAuth (accès restreint à un seul compte)
+- **cheerio** - parsing HTML pour la stratégie CSS
+- **tweetnacl** - vérification de signature Ed25519 pour Discord
+- **Vitest** + `@testing-library/react` - tests unitaires et composants (110 tests)
+- **Playwright** - tests e2e
 
 ## Démarrage rapide
 
@@ -44,7 +44,7 @@ make dev       # http://localhost:6677
 | `DISCORD_APPLICATION_ID` | ID de l'application Discord                              |
 | `DISCORD_BOT_TOKEN`      | Token bot Discord (pour enregistrer les commandes)       |
 
-En développement local, `REDIS_URL` peut être omis — un store en mémoire (`global._localStore`) est utilisé automatiquement.
+En développement local, `REDIS_URL` peut être omis - un store en mémoire (`global._localStore`) est utilisé automatiquement.
 
 ## Alias
 
@@ -70,7 +70,7 @@ Un alias est un nom (pseudo joueur, surnom…) associé à **un ou plusieurs sig
 
 `belier`, `taureau`, `gemeaux`, `cancer`, `lion`, `vierge`, `balance`, `scorpion`, `sagittaire`, `capricorne`, `verseau`, `poissons`, `furet`
 
-Le Furet est le 13e signe bonus du Gorafi — présent occasionnellement.
+Le Furet est le 13e signe bonus du Gorafi - présent occasionnellement.
 
 ## Commandes
 
@@ -97,7 +97,7 @@ make discord-register  # Enregistrer la commande slash Discord (une seule fois)
 ```
 src/
 ├── app/
-│   ├── page.tsx                          # Home — grille 13 signes avec compteur d'alias
+│   ├── page.tsx                          # Home - grille 13 signes avec compteur d'alias
 │   ├── [sign]/page.tsx                   # Page signe (lecture seule)
 │   ├── aliases/page.tsx                  # Gestionnaire d'alias
 │   └── api/
@@ -120,16 +120,16 @@ src/
 │   └── signs.ts            # Tableau SIGNS + helpers slugs
 ├── components/
 │   ├── HoroscopeCard.tsx   # Carte signe : lien vers détail + bouton copie
-│   ├── CopyButton.tsx      # Client component — copie presse-papiers avec feedback 2s
-│   └── AliasManager.tsx    # Client component — CRUD alias complet (chips, export/import JSON)
+│   ├── CopyButton.tsx      # Client component - copie presse-papiers avec feedback 2s
+│   └── AliasManager.tsx    # Client component - CRUD alias complet (chips, export/import JSON)
 └── styles/
-    └── theme.css           # CSS custom properties — toutes les couleurs ici
+    └── theme.css           # CSS custom properties - toutes les couleurs ici
 tests/
-├── unit/          # Vitest — logique pure (scraper, cache, signature Discord)
+├── unit/          # Vitest - logique pure (scraper, cache, signature Discord)
 ├── component/     # Vitest + Testing Library
 └── e2e/           # Playwright (à venir)
 ```
 
 ## Licence
 
-MIT — voir [LICENSE](LICENSE).
+MIT - voir [LICENSE](LICENSE).
