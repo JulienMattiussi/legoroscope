@@ -1,4 +1,4 @@
-# Légoroscope
+# Legoroscope
 
 Horoscope hebdomadaire du [Gorafi](https://www.legorafi.fr/category/horoscope/), servi via une API Next.js, affiché dans un bot Discord et une interface web avec connexion GitHub OAuth.
 

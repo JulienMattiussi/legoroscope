@@ -9,7 +9,7 @@ La commande est enregistrée en mode **User Install** : une fois autorisée sur 
 ## 1. Créer l'application Discord
 
 1. Aller sur [discord.com/developers/applications](https://discord.com/developers/applications) → **New Application**
-2. Donner un nom (`Légoroscope`), valider
+2. Donner un nom (`Legoroscope`), valider
 
 ## 2. Récupérer les identifiants
 
