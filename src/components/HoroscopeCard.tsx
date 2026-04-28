@@ -7,10 +7,10 @@ import { CopyButton } from "./CopyButton";
 type Props = {
   sign: Sign;
   data: (CachedHoroscope & { sign: Sign }) | null;
-  pseudoCount?: number;
+  aliasCount?: number;
 };
 
-export function HoroscopeCard({ sign, data, pseudoCount = 0 }: Props) {
+export function HoroscopeCard({ sign, data, aliasCount = 0 }: Props) {
   const meta = getSign(sign)!;
 
   return (
@@ -57,9 +57,9 @@ export function HoroscopeCard({ sign, data, pseudoCount = 0 }: Props) {
                 ancien
               </span>
             )}
-            {pseudoCount > 0 && (
+            {aliasCount > 0 && (
               <span
-                title={`${pseudoCount} pseudo${pseudoCount > 1 ? "s" : ""}`}
+                title={`${aliasCount} alias`}
                 style={{
                   fontSize: "0.68rem",
                   color: "var(--text-muted)",
@@ -70,7 +70,7 @@ export function HoroscopeCard({ sign, data, pseudoCount = 0 }: Props) {
                   fontVariantNumeric: "tabular-nums",
                 }}
               >
-                {pseudoCount}
+                {aliasCount}
               </span>
             )}
             {data?.text && <CopyButton text={data.text} />}

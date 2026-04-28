@@ -12,16 +12,16 @@ Horoscope scraper from Le Gorafi, served via a Next.js API, displayed in a Disco
 
 ## What this project is
 
-- **API**: scrapes Le Gorafi horoscopes (13 signs including Furet), caches results by week in Redis, serves each sign on a dedicated route. Also resolves pseudos to their associated sign.
+- **API**: scrapes Le Gorafi horoscopes (13 signs including Furet), caches results by week in Redis, serves each sign on a dedicated route. Also resolves aliases to their associated signs.
 - **Discord**: slash-command bot using Discord Interactions webhooks (serverless-compatible, no persistent gateway connection).
-- **Frontend**: Next.js web app with GitHub OAuth (NextAuth) to display horoscopes and manage pseudo↔sign associations.
+- **Frontend**: Next.js web app with GitHub OAuth (NextAuth) to display horoscopes and manage alias↔sign associations.
 
 Deployed on Vercel free tier.
 
 ## Stack
 
 - **Next.js 15** — App Router, TypeScript strict, API routes as Route Handlers
-- **Redis Cloud** (`ioredis`) — weekly horoscope cache (8-day TTL) + user pseudo associations + pseudo index; `REDIS_URL` injected by Vercel at runtime (format: `redis://default:token@host:port`)
+- **Redis Cloud** (`ioredis`) — weekly horoscope cache (8-day TTL) + user alias associations + alias index; `REDIS_URL` injected by Vercel at runtime (format: `redis://default:token@host:port`)
 - **NextAuth v5** — GitHub OAuth session management
 - **cheerio** — HTML scraping (CSS and RSS strategies)
 - **Vitest** + `@testing-library/react` — unit and component tests
@@ -35,15 +35,15 @@ Deployed on Vercel free tier.
 ```
 src/
 ├── app/
-│   ├── page.tsx                         # Home — grid of 13 signs with pseudo count + copy button
-│   ├── [sign]/page.tsx                  # Single sign page with pseudo manager
-│   ├── pseudos/page.tsx                 # Alphabetical grid of all pseudos
+│   ├── page.tsx                          # Home — grid of 13 signs with alias count + copy button
+│   ├── [sign]/page.tsx                   # Single sign page (read-only horoscope)
+│   ├── aliases/page.tsx                  # Alias manager — create/edit/delete aliases
 │   └── api/
-│       ├── horoscope/[sign]/route.ts    # GET → by sign slug OR pseudo name
-│       ├── horoscopes/route.ts          # GET → all 13 signs at once
-│       ├── discord/route.ts             # POST → Discord interactions
-│       ├── user/pseudos/[sign]/route.ts # GET/POST/DELETE → pseudo management per sign
-│       ├── user/pseudos/route.ts        # GET → all pseudos across all signs
+│       ├── horoscope/[sign]/route.ts     # GET → by sign slug (object) OR alias name (array)
+│       ├── horoscopes/route.ts           # GET → all 13 signs at once
+│       ├── discord/route.ts              # POST → Discord interactions
+│       ├── user/aliases/route.ts         # GET → all aliases; POST → create or bulk import
+│       ├── user/aliases/[alias]/route.ts # PUT → update signs; DELETE → delete alias
 │       └── auth/[...nextauth]/route.ts
 ├── lib/
 │   ├── scraper/
@@ -51,7 +51,7 @@ src/
 │   │   ├── css.ts         # strategy: cheerio CSS selectors
 │   │   ├── rss.ts         # strategy: RSS/Atom feed
 │   │   └── regex.ts       # strategy: regex on raw HTML
-│   ├── cache.ts           # Redis helpers (key schema, TTL, stale fallback, pseudo index)
+│   ├── cache.ts           # Redis helpers (key schema, TTL, stale fallback, alias index)
 │   ├── discord.ts         # Ed25519 signature verification + command dispatch
 │   ├── auth.ts            # NextAuth config (GitHub provider, ALLOWED_GITHUB_LOGIN)
 │   ├── gorafi.config.ts   # scraping URLs, selectors, and strategy order
@@ -59,8 +59,7 @@ src/
 ├── components/
 │   ├── HoroscopeCard.tsx  # card: Link body (sign detail) + copy button top-right
 │   ├── CopyButton.tsx     # client component — clipboard copy with 2s feedback
-│   ├── PseudoManager.tsx  # client component — add/delete pseudos on sign page
-│   └── PseudoGrid.tsx     # client component — alphabetical grid with trash+confirm
+│   └── AliasManager.tsx   # client component — full alias CRUD with sign chips, export/import
 └── styles/
     └── theme.css          # CSS custom properties — all colors live here
 tests/
@@ -81,17 +80,19 @@ Le Furet est le 13e signe bonus du Gorafi — présent occasionnellement dans le
 | -------------------------------- | ---------------------------------------------------------- |
 | `horoscope:{year}:{week}:{sign}` | `{ text, fetchedAt, strategy, sourceUrl }`                 |
 | `horoscope:stale:{sign}`         | last known good `{ text, fetchedAt, strategy, sourceUrl }` |
-| `user:{githubId}:pseudos:{sign}` | `["pseudo1", "pseudo2"]`                                   |
-| `pseudo:{lowercase}`             | `{ sign, userId }` — global reverse index                  |
+| `user:{githubId}:alias:{lower}`  | `["sign1", "sign2"]` — signs covered by this alias         |
+| `alias:{lower}`                  | `{ signs, userId }` — global reverse index                 |
 
-## Pseudos
+## Aliases
 
-Users associate game pseudos with zodiac signs. Constraints:
+Users associate game names (aliases) with one or more zodiac signs. Constraints:
 
-- A pseudo can belong to only one sign (system-wide). Adding a pseudo to a new sign removes it from the previous one; the API returns `movedFrom` so the UI can notify the user.
-- Pseudo uniqueness is case-insensitive (`localeCompare` with `sensitivity: "base"`).
-- Sign slugs are forbidden as pseudo names to avoid route collisions on `/api/horoscope/[identifier]`.
-- The global reverse index (`pseudo:{lowercase}`) allows `GET /api/horoscope/[identifier]` to resolve a pseudo to its sign without scanning all users.
+- An alias is globally unique (case-insensitive). Two users cannot share the same alias name.
+- An alias can cover any number of signs (including zero — it is stored but ignored for lookups).
+- Sign slugs are forbidden as alias names to avoid route collisions on `/api/horoscope/[identifier]`.
+- The global reverse index (`alias:{lower}`) allows `GET /api/horoscope/[identifier]` to resolve an alias to its signs without scanning all users.
+- When resolving an alias that covers multiple signs, the horoscope endpoint returns an **array** of horoscope objects (one per sign). A sign slug always returns a single object.
+- Import accepts two formats: new (`[{alias, signs:[…]}]`) and old pseudo format (`[{pseudo, sign}]`). Old-format entries with the same pseudo name are merged into one alias with all their signs combined.
 
 ## Scraper strategies
 
@@ -113,21 +114,22 @@ All pure parsing functions (`extractSignsFromArticle`, `extractSignsWithRegex`, 
 
 ## API routes
 
-| Route                         | Method | Description                                                                  |
-| ----------------------------- | ------ | ---------------------------------------------------------------------------- |
-| `/api/horoscope/[identifier]` | GET    | Returns horoscope; `identifier` can be a sign slug **or** a pseudo name      |
-| `/api/horoscopes`             | GET    | All 13 signs at once                                                         |
-| `/api/user/pseudos/[sign]`    | GET    | List pseudos for a sign                                                      |
-| `/api/user/pseudos/[sign]`    | POST   | Add pseudo to sign (moves if already on another sign)                        |
-| `/api/user/pseudos/[sign]`    | DELETE | Remove pseudo from sign                                                      |
-| `/api/user/pseudos`           | GET    | All pseudos across all signs, sorted alphabetically                          |
-| `/api/user/pseudos`           | POST   | Bulk import: `{ entries: [{pseudo, sign}] }` → adds all, sequential per sign |
-| `/api/discord`                | POST   | Discord Interactions webhook                                                 |
-| `/api/auth/[...nextauth]`     | —      | NextAuth handlers                                                            |
+| Route                         | Method | Description                                                                               |
+| ----------------------------- | ------ | ----------------------------------------------------------------------------------------- |
+| `/api/horoscope/[identifier]` | GET    | Sign slug → single horoscope object; alias name → array of `{sign, ...horoscope}` objects |
+| `/api/horoscopes`             | GET    | All 13 signs at once                                                                      |
+| `/api/user/aliases`           | GET    | All aliases with their signs, sorted alphabetically                                       |
+| `/api/user/aliases`           | POST   | Create alias `{alias, signs}` or bulk import `{entries: [{alias, signs}]}` / old format   |
+| `/api/user/aliases/[alias]`   | PUT    | Replace signs for an alias `{signs: [...]}`                                               |
+| `/api/user/aliases/[alias]`   | DELETE | Delete an alias                                                                           |
+| `/api/discord`                | POST   | Discord Interactions webhook                                                              |
+| `/api/auth/[...nextauth]`     | —      | NextAuth handlers                                                                         |
 
 ## Discord
 
 Uses Discord Interactions (slash commands via webhook endpoint `/api/discord`). No persistent bot gateway needed — the endpoint receives `POST` requests from Discord, verifies the Ed25519 signature with `tweetnacl`, and returns a response JSON.
+
+When a user provides an alias that covers multiple signs, the bot returns **one line per sign** (option A — all horoscopes concatenated in a single message).
 
 Register the `/horoscope <signe>` command once via the Discord REST API (a one-off script in `scripts/register-discord-command.ts`).
 
@@ -152,18 +154,18 @@ When `REDIS_URL` is absent (local dev), `cache.ts` falls back to an in-memory `M
 
 ## Current status (as of 2026-04-28)
 
-The codebase is functionally complete. All checks and unit tests pass (93 tests).
+The codebase is functionally complete. All checks and unit tests pass (110 tests).
 
 ### Done
 
 - **Scraper** — 3 strategies (CSS, RSS, regex) with fallback orchestrator; strategy order in `gorafi.config.ts`; `sourceUrl` (article URL) threaded through scraper → cache → API → UI.
-- **Redis cache** — weekly key (8-day TTL) + stale fallback + global pseudo reverse index; all reads/writes go through `src/lib/cache.ts`; in-memory fallback for local dev.
-- **API routes** — `/api/horoscope/[identifier]` resolves both sign slugs and pseudos; full pseudo CRUD; Discord; auth.
-- **Discord** — Ed25519 verification + command dispatch; `/api/discord` handles PING and `APPLICATION_COMMAND`; autocomplete includes both sign names and user pseudos.
+- **Redis cache** — weekly key (8-day TTL) + stale fallback + global alias reverse index; all reads/writes go through `src/lib/cache.ts`; in-memory fallback for local dev.
+- **API routes** — `/api/horoscope/[identifier]` resolves sign slugs (single object) and aliases (array); full alias CRUD; Discord; auth.
+- **Discord** — Ed25519 verification + command dispatch; `/api/discord` handles PING and `APPLICATION_COMMAND`; autocomplete includes both sign names and user aliases; multi-sign aliases expand to one line per sign.
 - **Auth** — NextAuth v5 GitHub OAuth; single allowed login via `ALLOWED_GITHUB_LOGIN` env var; `jwt` callback pins `token.sub` to the stable GitHub numeric profile ID for consistent cross-browser identity.
-- **Frontend** — Home grid (3 columns, 1200px wide, pseudo count badge, copy button, source link in subtitle); sign detail page with pseudo manager; `/pseudos` page (alphabetical grid, trash+confirm); session-aware nav; write errors surfaced via `--error` color notification.
-- **Unit tests** — `tests/unit/`: all five scraper strategy parsing functions, orchestrator, cache (Redis + local store fallback), discord sig, signs, discord route handler (93 tests).
-- **Component tests** — `tests/component/PseudoGrid.test.tsx` (10 tests); `tests/component/PseudoManager.test.tsx` (7 tests).
+- **Frontend** — Home grid (3 columns, 1200px wide, alias count badge per sign, copy button, source link in subtitle); sign detail page (read-only); `/aliases` page (create/edit/delete aliases, sign chips, export/import JSON with old pseudo format backward compat); session-aware nav; write errors surfaced via `--error` color notification.
+- **Unit tests** — `tests/unit/`: all five scraper strategy parsing functions, orchestrator, cache (Redis + local store fallback), discord sig, signs, discord route handler (110 tests).
+- **Component tests** — `tests/component/AliasManager.test.tsx` (18 tests).
 
 ### Still missing
 
@@ -210,6 +212,7 @@ Every feature, change, or bug fix must be accompanied by:
 - **HTTP fetching in scrapers** — use `fetchPage()` from `src/lib/scraper/fetch.ts`. Do not add a local `fetchPage` in strategy files.
 - **TypeScript narrowing across async callbacks** — after `if (!session?.user?.id) return`, extract `const userId = session.user.id` before any `async` callback or `Promise.all` to avoid losing the narrowed type.
 - **Case-insensitive string comparison** — use `localeEquals(a, b)` from `src/lib/signs.ts`. Do not inline `localeCompare` calls.
+- **Alias vs sign slug in horoscope endpoint** — `GET /api/horoscope/[identifier]` returns a **single object** for a sign slug and an **array** for an alias. Callers must handle both shapes.
 - **Run `make check` before committing.**
 
 ## Commands

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { handleInteraction, autocompleteSign, autocompletePseudos } from "@/lib/discord";
+import { handleInteraction, autocompleteSign, autocompleteAliases } from "@/lib/discord";
 
 const sign = (label: string, horoscope: string | null) => ({
   label,
@@ -76,27 +76,27 @@ describe("autocompleteSign", () => {
   });
 });
 
-describe("autocompletePseudos", () => {
-  const PSEUDOS = ["michel", "Michelle", "caroline", "Caro"];
+describe("autocompleteAliases", () => {
+  const ALIASES = ["michel", "Michelle", "caroline", "Caro"];
 
   it("returns empty array when typed is empty", () => {
-    expect(autocompletePseudos("", PSEUDOS)).toHaveLength(0);
+    expect(autocompleteAliases("", ALIASES)).toHaveLength(0);
   });
 
-  it("filters pseudos by prefix (case-insensitive, accent-insensitive)", () => {
-    const results = autocompletePseudos("mi", PSEUDOS);
+  it("filters aliases by prefix (case-insensitive, accent-insensitive)", () => {
+    const results = autocompleteAliases("mi", ALIASES);
     expect(results.map((r) => r.value)).toContain("michel");
     expect(results.map((r) => r.value)).toContain("Michelle");
     expect(results.map((r) => r.value)).not.toContain("caroline");
   });
 
-  it("uses the pseudo as both name and value", () => {
-    const result = autocompletePseudos("car", PSEUDOS)[0]!;
+  it("uses the alias as both name and value", () => {
+    const result = autocompleteAliases("car", ALIASES)[0]!;
     expect(result.name).toBe("caroline");
     expect(result.value).toBe("caroline");
   });
 
-  it("returns empty array when no pseudo matches", () => {
-    expect(autocompletePseudos("xyz", PSEUDOS)).toHaveLength(0);
+  it("returns empty array when no alias matches", () => {
+    expect(autocompleteAliases("xyz", ALIASES)).toHaveLength(0);
   });
 });

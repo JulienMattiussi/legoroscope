@@ -1,7 +1,7 @@
-import { SIGNS, SIGN_SLUGS } from "@/lib/signs";
+import { SIGNS } from "@/lib/signs";
 import { HoroscopeCard } from "@/components/HoroscopeCard";
 import { auth } from "@/lib/auth";
-import { getUserPseudos } from "@/lib/cache";
+import { getAllUserAliases } from "@/lib/cache";
 import { GORAFI_CONFIG } from "@/lib/gorafi.config";
 import { headers } from "next/headers";
 import Link from "next/link";
@@ -77,13 +77,13 @@ export default async function HomePage() {
     : SIGNS.map((s) => ({ sign: s.slug, text: null, error: true }));
 
   const userId = session.user!.id!;
-  const pseudoCounts: Partial<Record<Sign, number>> = {};
-  await Promise.all(
-    SIGN_SLUGS.map(async (sign) => {
-      const pseudos = await getUserPseudos(userId, sign);
-      if (pseudos.length > 0) pseudoCounts[sign] = pseudos.length;
-    }),
-  );
+  const allAliases = await getAllUserAliases(userId);
+  const aliasCounts: Partial<Record<Sign, number>> = {};
+  for (const signs of Object.values(allAliases)) {
+    for (const s of signs) {
+      aliasCounts[s] = (aliasCounts[s] ?? 0) + 1;
+    }
+  }
 
   const sourceUrl =
     payload.find(
@@ -94,7 +94,7 @@ export default async function HomePage() {
   const toCard = (item: (typeof payload)[number]) => ({
     sign: item.sign,
     data: "text" in item && item.text ? (item as CachedHoroscope & { sign: Sign }) : null,
-    pseudoCount: pseudoCounts[item.sign] ?? 0,
+    aliasCount: aliasCounts[item.sign] ?? 0,
   });
 
   const zodiac = payload.map(toCard);
@@ -136,12 +136,12 @@ export default async function HomePage() {
           gap: "0.6rem",
         }}
       >
-        {zodiac.map(({ sign, data, pseudoCount }) => (
+        {zodiac.map(({ sign, data, aliasCount }) => (
           <div key={sign} style={sign === "furet" ? { gridColumn: "2" } : undefined}>
             <HoroscopeCard
               sign={sign as Sign}
               data={data ? ({ ...data, sign } as CachedHoroscope & { sign: Sign }) : null}
-              pseudoCount={pseudoCount}
+              aliasCount={aliasCount}
             />
           </div>
         ))}

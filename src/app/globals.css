@@ -24,6 +24,23 @@ body {
   border-color: var(--brand);
 }
 
+.add-sign-btn {
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.78rem;
+  padding: 0.2rem 0.5rem;
+  transition:
+    color 0.15s,
+    border-color 0.15s;
+}
+.add-sign-btn:hover {
+  color: var(--brand);
+  border-color: var(--brand);
+}
+
 .source-link {
   color: inherit;
   text-decoration: underline !important;

@@ -9,8 +9,8 @@ vi.mock("@/lib/discord", async (importOriginal) => {
 vi.mock("@/lib/cache", () => ({
   getCachedHoroscope: vi.fn(),
   setCachedHoroscope: vi.fn().mockResolvedValue(undefined),
-  getPseudoSign: vi.fn().mockResolvedValue(null),
-  getAllPseudoNames: vi.fn().mockResolvedValue([]),
+  getAliasIndex: vi.fn().mockResolvedValue(null),
+  getAllAliasNames: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock("@/lib/scraper", () => ({
@@ -18,7 +18,7 @@ vi.mock("@/lib/scraper", () => ({
 }));
 
 import { POST } from "@/app/api/discord/route";
-import { getCachedHoroscope, getPseudoSign, getAllPseudoNames } from "@/lib/cache";
+import { getCachedHoroscope, getAliasIndex, getAllAliasNames } from "@/lib/cache";
 
 function makeRequest(body: object): NextRequest {
   const json = JSON.stringify(body);
@@ -33,7 +33,7 @@ const cached = (text: string) => ({ text, fetchedAt: "", strategy: "css" as cons
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(getCachedHoroscope).mockResolvedValue(cached("Horoscope test."));
-  vi.mocked(getPseudoSign).mockResolvedValue(null);
+  vi.mocked(getAliasIndex).mockResolvedValue(null);
 });
 
 describe("Discord route — multiple signs", () => {
@@ -71,8 +71,8 @@ describe("Discord route — multiple signs", () => {
     expect(data.content.split("\n")).toHaveLength(1);
   });
 
-  it("resolves a pseudo to its sign", async () => {
-    vi.mocked(getPseudoSign).mockResolvedValue({ sign: "scorpion", userId: "u1" });
+  it("resolves an alias covering one sign", async () => {
+    vi.mocked(getAliasIndex).mockResolvedValue({ signs: ["scorpion"], userId: "u1" });
     const res = await POST(
       makeRequest({
         type: 2,
@@ -81,6 +81,39 @@ describe("Discord route — multiple signs", () => {
     );
     const { data } = await res.json();
     expect(data.content).toContain("Scorpion");
+  });
+
+  it("resolves an alias covering multiple signs — returns one line per sign", async () => {
+    vi.mocked(getAliasIndex).mockResolvedValue({ signs: ["lion", "cancer"], userId: "u1" });
+    const res = await POST(
+      makeRequest({
+        type: 2,
+        data: { options: [{ name: "signe", value: "michel" }] },
+      }),
+    );
+    const { data } = await res.json();
+    expect(data.content).toContain("Lion");
+    expect(data.content).toContain("Cancer");
+    expect(data.content.split("\n")).toHaveLength(2);
+  });
+
+  it("deduplicates when alias sign overlaps with explicit sign input", async () => {
+    vi.mocked(getAliasIndex).mockResolvedValue({ signs: ["lion", "cancer"], userId: "u1" });
+    const res = await POST(
+      makeRequest({
+        type: 2,
+        data: {
+          options: [
+            { name: "signe", value: "lion" }, // explicit lion
+            { name: "signe2", value: "michel" }, // alias covers lion + cancer
+          ],
+        },
+      }),
+    );
+    const { data } = await res.json();
+    // lion appears only once despite being in both
+    expect(data.content.split("\n").filter((l: string) => l.includes("Lion"))).toHaveLength(1);
+    expect(data.content).toContain("Cancer");
   });
 
   it("returns an error when all inputs are unknown", async () => {
@@ -125,8 +158,8 @@ describe("Discord route — autocomplete", () => {
     expect(data.choices.map((c: { value: string }) => c.value)).toContain("lion");
   });
 
-  it("includes pseudo choices when pseudos match the prefix", async () => {
-    vi.mocked(getAllPseudoNames).mockResolvedValueOnce(["michel", "michelle", "caroline"]);
+  it("includes alias choices when aliases match the prefix", async () => {
+    vi.mocked(getAllAliasNames).mockResolvedValueOnce(["michel", "michelle", "caroline"]);
     const res = await POST(
       makeRequest({ type: 4, data: { options: [{ name: "signe", value: "mi", focused: true }] } }),
     );
@@ -138,11 +171,11 @@ describe("Discord route — autocomplete", () => {
   });
 
   it("returns at most 25 choices", async () => {
-    vi.mocked(getAllPseudoNames).mockResolvedValueOnce(
-      Array.from({ length: 30 }, (_, i) => `pseudo${i}`),
+    vi.mocked(getAllAliasNames).mockResolvedValueOnce(
+      Array.from({ length: 30 }, (_, i) => `alias${i}`),
     );
     const res = await POST(
-      makeRequest({ type: 4, data: { options: [{ name: "signe", value: "p", focused: true }] } }),
+      makeRequest({ type: 4, data: { options: [{ name: "signe", value: "a", focused: true }] } }),
     );
     const { data } = await res.json();
     expect(data.choices.length).toBeLessThanOrEqual(25);

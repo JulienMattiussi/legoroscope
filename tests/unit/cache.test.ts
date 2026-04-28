@@ -14,10 +14,14 @@ vi.mock("ioredis", () => ({
 import {
   getCachedHoroscope,
   setCachedHoroscope,
-  getAllPseudoNames,
-  getUserPseudos,
-  setUserPseudos,
-  setPseudoSign,
+  getUserAlias,
+  setUserAlias,
+  deleteUserAlias,
+  getAliasIndex,
+  setAliasIndex,
+  deleteAliasIndex,
+  getAllAliasNames,
+  getAllUserAliases,
 } from "@/lib/cache";
 
 beforeEach(() => {
@@ -78,11 +82,99 @@ describe("setCachedHoroscope", () => {
   it("sets a TTL on the weekly key but not the stale key", async () => {
     mockSet.mockResolvedValue("OK");
     await setCachedHoroscope("lion", { text: "Horoscope", strategy: "css" });
-    // weekly key: set(key, value, "EX", seconds)
     expect(mockSet.mock.calls[0]?.[2]).toBe("EX");
     expect(mockSet.mock.calls[0]?.[3]).toBeGreaterThan(0);
-    // stale key: set(key, value) — no TTL args
     expect(mockSet.mock.calls[1]?.[2]).toBeUndefined();
+  });
+});
+
+describe("alias functions (Redis)", () => {
+  it("setUserAlias writes the correct key", async () => {
+    mockSet.mockResolvedValue("OK");
+    await setUserAlias("u1", "Michel", ["lion", "belier"]);
+    expect(mockSet).toHaveBeenCalledWith(
+      "user:u1:alias:michel",
+      JSON.stringify(["lion", "belier"]),
+    );
+  });
+
+  it("getUserAlias reads the correct key", async () => {
+    mockGet.mockResolvedValueOnce(JSON.stringify(["lion"]));
+    const result = await getUserAlias("u1", "Michel");
+    expect(mockGet).toHaveBeenCalledWith("user:u1:alias:michel");
+    expect(result).toEqual(["lion"]);
+  });
+
+  it("getUserAlias returns null when key is missing", async () => {
+    mockGet.mockResolvedValueOnce(null);
+    expect(await getUserAlias("u1", "unknown")).toBeNull();
+  });
+
+  it("deleteUserAlias deletes the correct key", async () => {
+    mockDel.mockResolvedValue(1);
+    await deleteUserAlias("u1", "Michel");
+    expect(mockDel).toHaveBeenCalledWith("user:u1:alias:michel");
+  });
+
+  it("setAliasIndex writes to the global index", async () => {
+    mockSet.mockResolvedValue("OK");
+    await setAliasIndex("Michel", ["lion"], "u1");
+    expect(mockSet).toHaveBeenCalledWith(
+      "alias:michel",
+      JSON.stringify({ signs: ["lion"], userId: "u1" }),
+    );
+  });
+
+  it("getAliasIndex reads from the global index", async () => {
+    mockGet.mockResolvedValueOnce(JSON.stringify({ signs: ["lion", "belier"], userId: "u1" }));
+    const result = await getAliasIndex("Michel");
+    expect(mockGet).toHaveBeenCalledWith("alias:michel");
+    expect(result).toEqual({ signs: ["lion", "belier"], userId: "u1" });
+  });
+
+  it("deleteAliasIndex deletes the global index key", async () => {
+    mockDel.mockResolvedValue(1);
+    await deleteAliasIndex("Michel");
+    expect(mockDel).toHaveBeenCalledWith("alias:michel");
+  });
+});
+
+describe("getAllAliasNames", () => {
+  it("returns alias names extracted from Redis keys", async () => {
+    mockScan.mockResolvedValueOnce(["0", ["alias:michel", "alias:caroline"]]);
+    const names = await getAllAliasNames();
+    expect(names).toEqual(["michel", "caroline"]);
+    expect(mockScan).toHaveBeenCalledWith("0", "MATCH", "alias:*", "COUNT", 100);
+  });
+
+  it("iterates until cursor is 0", async () => {
+    mockScan
+      .mockResolvedValueOnce(["42", ["alias:michel"]])
+      .mockResolvedValueOnce(["0", ["alias:caroline"]]);
+    const names = await getAllAliasNames();
+    expect(names).toEqual(["michel", "caroline"]);
+    expect(mockScan).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns empty array when no alias keys exist", async () => {
+    mockScan.mockResolvedValueOnce(["0", []]);
+    expect(await getAllAliasNames()).toEqual([]);
+  });
+});
+
+describe("getAllUserAliases", () => {
+  it("returns a map of alias name to signs", async () => {
+    mockScan.mockResolvedValueOnce(["0", ["user:u1:alias:michel", "user:u1:alias:caroline"]]);
+    mockGet
+      .mockResolvedValueOnce(JSON.stringify(["lion"]))
+      .mockResolvedValueOnce(JSON.stringify(["belier", "verseau"]));
+    const result = await getAllUserAliases("u1");
+    expect(result).toEqual({ michel: ["lion"], caroline: ["belier", "verseau"] });
+  });
+
+  it("returns empty object when user has no aliases", async () => {
+    mockScan.mockResolvedValueOnce(["0", []]);
+    expect(await getAllUserAliases("u1")).toEqual({});
   });
 });
 
@@ -108,7 +200,6 @@ describe("local store fallback (no REDIS_URL)", () => {
 
   it("getCachedHoroscope returns stale when weekly key absent but stale key present", async () => {
     await setCachedHoroscope("taureau", { text: "Ancien horoscope", strategy: "rss" });
-    // Remove the weekly key to simulate a new week
     const now = new Date();
     const jan4 = new Date(now.getFullYear(), 0, 4);
     const startOfWeek1 = new Date(jan4);
@@ -121,43 +212,48 @@ describe("local store fallback (no REDIS_URL)", () => {
     expect(result?.stale).toBe(true);
   });
 
-  it("getUserPseudos + setUserPseudos round-trips the list", async () => {
-    await setUserPseudos("user1", "lion", ["alpha", "beta"]);
-    const result = await getUserPseudos("user1", "lion");
-    expect(result).toEqual(["alpha", "beta"]);
+  it("setUserAlias + getUserAlias round-trips the signs list", async () => {
+    await setUserAlias("u1", "Michel", ["lion", "belier"]);
+    expect(await getUserAlias("u1", "Michel")).toEqual(["lion", "belier"]);
   });
 
-  it("getAllPseudoNames returns pseudo keys from local store", async () => {
-    await setPseudoSign("michel", "lion", "user1");
-    await setPseudoSign("caroline", "belier", "user1");
+  it("getUserAlias is case-insensitive on the name", async () => {
+    await setUserAlias("u1", "MICHEL", ["lion"]);
+    expect(await getUserAlias("u1", "michel")).toEqual(["lion"]);
+  });
+
+  it("deleteUserAlias removes the entry", async () => {
+    await setUserAlias("u1", "Michel", ["lion"]);
+    await deleteUserAlias("u1", "Michel");
+    expect(await getUserAlias("u1", "Michel")).toBeNull();
+  });
+
+  it("setAliasIndex + getAliasIndex round-trips the entry", async () => {
+    await setAliasIndex("Michel", ["lion", "cancer"], "u1");
+    expect(await getAliasIndex("Michel")).toEqual({ signs: ["lion", "cancer"], userId: "u1" });
+  });
+
+  it("deleteAliasIndex removes the entry", async () => {
+    await setAliasIndex("Michel", ["lion"], "u1");
+    await deleteAliasIndex("Michel");
+    expect(await getAliasIndex("Michel")).toBeNull();
+  });
+
+  it("getAllAliasNames returns names from local store", async () => {
+    await setAliasIndex("michel", ["lion"], "u1");
+    await setAliasIndex("caroline", ["belier"], "u1");
     g._localStore?.set("other:key", "ignored");
-    const names = await getAllPseudoNames();
+    const names = await getAllAliasNames();
     expect(names).toContain("michel");
     expect(names).toContain("caroline");
     expect(names).not.toContain("other:key");
   });
-});
 
-describe("getAllPseudoNames", () => {
-  it("returns pseudo names extracted from Redis keys", async () => {
-    mockScan.mockResolvedValueOnce(["0", ["pseudo:michel", "pseudo:caroline"]]);
-    const names = await getAllPseudoNames();
-    expect(names).toEqual(["michel", "caroline"]);
-    expect(mockScan).toHaveBeenCalledWith("0", "MATCH", "pseudo:*", "COUNT", 100);
-  });
-
-  it("iterates until cursor is 0", async () => {
-    mockScan
-      .mockResolvedValueOnce(["42", ["pseudo:michel"]])
-      .mockResolvedValueOnce(["0", ["pseudo:caroline"]]);
-    const names = await getAllPseudoNames();
-    expect(names).toEqual(["michel", "caroline"]);
-    expect(mockScan).toHaveBeenCalledTimes(2);
-  });
-
-  it("returns empty array when no pseudo keys exist", async () => {
-    mockScan.mockResolvedValueOnce(["0", []]);
-    const names = await getAllPseudoNames();
-    expect(names).toEqual([]);
+  it("getAllUserAliases returns all aliases for a user", async () => {
+    await setUserAlias("u1", "michel", ["lion"]);
+    await setUserAlias("u1", "caroline", ["belier", "verseau"]);
+    await setUserAlias("u2", "other", ["cancer"]); // different user, excluded
+    const result = await getAllUserAliases("u1");
+    expect(result).toEqual({ michel: ["lion"], caroline: ["belier", "verseau"] });
   });
 });

@@ -3,15 +3,15 @@ import {
   verifyDiscordSignature,
   handleInteraction,
   autocompleteSign,
-  autocompletePseudos,
+  autocompleteAliases,
 } from "@/lib/discord";
 import type { SignResult } from "@/lib/discord";
 import { findSignByInput, getSign, isValidSign } from "@/lib/signs";
 import {
   getCachedHoroscope,
   setCachedHoroscope,
-  getPseudoSign,
-  getAllPseudoNames,
+  getAliasIndex,
+  getAllAliasNames,
 } from "@/lib/cache";
 import { scrapeAllHoroscopes } from "@/lib/scraper";
 import type { Sign } from "@/lib/signs";
@@ -37,11 +37,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ type: 1 });
   }
 
-  // Autocomplete — signs + pseudos matching what the user has typed so far
+  // Autocomplete — signs + aliases matching what the user has typed so far
   if (interaction.type === 4) {
     const typed = options.find((o) => o.focused)?.value ?? "";
-    const allPseudos = await getAllPseudoNames();
-    const choices = [...autocompleteSign(typed), ...autocompletePseudos(typed, allPseudos)].slice(
+    const allAliases = await getAllAliasNames();
+    const choices = [...autocompleteSign(typed), ...autocompleteAliases(typed, allAliases)].slice(
       0,
       25,
     );
@@ -56,26 +56,42 @@ export async function POST(req: NextRequest) {
   if (inputs.length === 0) {
     return NextResponse.json({
       type: 4,
-      data: { content: "Indique un signe du zodiaque ou un pseudo." },
+      data: { content: "Indique un signe du zodiaque ou un alias." },
     });
   }
 
-  // Resolve each input to a sign, deduplicating by slug
+  // Resolve each input to one or more signs, deduplicating by slug
   const seen = new Set<Sign>();
   const signMetas: (typeof import("@/lib/signs").SIGNS)[number][] = [];
 
   for (const input of inputs) {
-    const match = findSignByInput(input) ?? getSign((await getPseudoSign(input))?.sign ?? "");
-    if (match && !seen.has(match.slug)) {
-      seen.add(match.slug);
-      signMetas.push(match);
+    const directMatch = findSignByInput(input);
+    if (directMatch) {
+      if (!seen.has(directMatch.slug)) {
+        seen.add(directMatch.slug);
+        signMetas.push(directMatch);
+      }
+      continue;
+    }
+    // Try alias — may resolve to multiple signs
+    const aliasEntry = await getAliasIndex(input);
+    if (aliasEntry) {
+      for (const s of aliasEntry.signs) {
+        const meta = getSign(s);
+        if (meta && !seen.has(s)) {
+          seen.add(s);
+          signMetas.push(meta);
+        }
+      }
     }
   }
 
   if (signMetas.length === 0) {
     return NextResponse.json({
       type: 4,
-      data: { content: `${inputs.map((i) => `"${i}"`).join(", ")} : aucun signe ni pseudo connu.` },
+      data: {
+        content: `${inputs.map((i) => `"${i}"`).join(", ")} : aucun signe ni alias connu.`,
+      },
     });
   }
 

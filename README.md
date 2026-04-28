@@ -5,18 +5,18 @@ Horoscope hebdomadaire du [Gorafi](https://www.legorafi.fr/category/horoscope/),
 ## Fonctionnalités
 
 - **Scraping** — 3 stratégies (CSS, RSS, regex) avec fallback automatique ; cache hebdomadaire dans Redis ; fallback sur la dernière valeur connue si tout échoue.
-- **API REST** — un endpoint par signe, un endpoint global pour tous les signes, résolution de pseudos (un pseudo mappé à un signe → retourne l'horoscope du signe).
-- **Bot Discord** — commande slash `/horoscope` via webhook Interactions (sans gateway persistant) ; jusqu'à 5 signes ou pseudos en une seule commande ; autocomplete ; fonctionne en DM et hors serveur (User Install).
-- **Web** — grille des 13 signes avec compte de pseudos, page de détail, page `/pseudos` alphabétique avec export/import JSON, connexion GitHub OAuth.
+- **API REST** — un endpoint par signe, un endpoint global pour tous les signes, résolution d'alias (un alias mappé à un ou plusieurs signes → retourne les horoscopes correspondants).
+- **Bot Discord** — commande slash `/horoscope` via webhook Interactions (sans gateway persistant) ; jusqu'à 5 signes ou alias en une seule commande ; si un alias couvre plusieurs signes, tous sont affichés ; autocomplete ; fonctionne en DM et hors serveur (User Install).
+- **Web** — grille des 13 signes avec compteur d'alias par signe, page de détail, page `/aliases` pour créer et gérer les alias (export/import JSON), connexion GitHub OAuth.
 
 ## Stack
 
 - **Next.js 15** — App Router, TypeScript strict
-- **Redis Cloud** (`ioredis`) — cache hebdomadaire (TTL 8 jours) + index global pseudo→signe
+- **Redis Cloud** (`ioredis`) — cache hebdomadaire (TTL 8 jours) + index global alias→signes
 - **NextAuth v5** — GitHub OAuth (accès restreint à un seul compte)
 - **cheerio** — parsing HTML pour la stratégie CSS
 - **tweetnacl** — vérification de signature Ed25519 pour Discord
-- **Vitest** + `@testing-library/react` — tests unitaires et composants (93 tests)
+- **Vitest** + `@testing-library/react` — tests unitaires et composants (110 tests)
 - **Playwright** — tests e2e
 
 ## Démarrage rapide
@@ -46,17 +46,25 @@ make dev       # http://localhost:6677
 
 En développement local, `REDIS_URL` peut être omis — un store en mémoire (`global._localStore`) est utilisé automatiquement.
 
+## Alias
+
+Un alias est un nom (pseudo joueur, surnom…) associé à **un ou plusieurs signes**. Créez-les sur `/aliases`.
+
+- Dans Discord : tapez un alias dans la commande `/horoscope` → l'horoscope de chaque signe couvert s'affiche.
+- Via l'API : `GET /api/horoscope/mon-alias` retourne un tableau de horoscopes.
+- Import : le fichier JSON accepte le nouveau format `[{alias, signs:[…]}]` **ou** l'ancien format pseudo `[{pseudo, sign}]` (les entrées de même nom sont fusionnées).
+
 ## API
 
-| Route                         | Méthode | Description                                             |
-| ----------------------------- | ------- | ------------------------------------------------------- |
-| `/api/horoscope/[identifier]` | GET     | Horoscope d'un signe (slug) ou d'un pseudo              |
-| `/api/horoscopes`             | GET     | Les 13 signes d'un coup                                 |
-| `/api/user/pseudos/[sign]`    | GET     | Pseudos associés à un signe (session requise)           |
-| `/api/user/pseudos/[sign]`    | POST    | Ajouter un pseudo à un signe (déplace si déjà ailleurs) |
-| `/api/user/pseudos/[sign]`    | DELETE  | Supprimer un pseudo d'un signe                          |
-| `/api/user/pseudos`           | GET     | Tous les pseudos, triés alphabétiquement                |
-| `/api/discord`                | POST    | Webhook Discord Interactions                            |
+| Route                         | Méthode | Description                                                               |
+| ----------------------------- | ------- | ------------------------------------------------------------------------- |
+| `/api/horoscope/[identifier]` | GET     | Signe (slug) → objet horoscope ; alias → tableau `[{sign, …horoscope}]`   |
+| `/api/horoscopes`             | GET     | Les 13 signes d'un coup                                                   |
+| `/api/user/aliases`           | GET     | Tous les alias de l'utilisateur, triés alphabétiquement (session requise) |
+| `/api/user/aliases`           | POST    | Créer un alias `{alias, signs}` ou importer en masse `{entries:[…]}`      |
+| `/api/user/aliases/[alias]`   | PUT     | Remplacer les signes d'un alias `{signs:[…]}`                             |
+| `/api/user/aliases/[alias]`   | DELETE  | Supprimer un alias                                                        |
+| `/api/discord`                | POST    | Webhook Discord Interactions                                              |
 
 ## Signes supportés
 
@@ -89,15 +97,15 @@ make discord-register  # Enregistrer la commande slash Discord (une seule fois)
 ```
 src/
 ├── app/
-│   ├── page.tsx                         # Home — grille 13 signes
-│   ├── [sign]/page.tsx                  # Page signe + gestionnaire de pseudos
-│   ├── pseudos/page.tsx                 # Grille alphabétique de tous les pseudos
+│   ├── page.tsx                          # Home — grille 13 signes avec compteur d'alias
+│   ├── [sign]/page.tsx                   # Page signe (lecture seule)
+│   ├── aliases/page.tsx                  # Gestionnaire d'alias
 │   └── api/
-│       ├── horoscope/[sign]/route.ts    # GET → par signe ou pseudo
-│       ├── horoscopes/route.ts          # GET → 13 signes d'un coup
-│       ├── discord/route.ts             # POST → Discord Interactions
-│       ├── user/pseudos/[sign]/route.ts # GET/POST/DELETE → pseudos par signe
-│       ├── user/pseudos/route.ts        # GET → tous les pseudos
+│       ├── horoscope/[sign]/route.ts     # GET → par signe ou alias
+│       ├── horoscopes/route.ts           # GET → 13 signes d'un coup
+│       ├── discord/route.ts              # POST → Discord Interactions
+│       ├── user/aliases/route.ts         # GET/POST → liste et création d'alias
+│       ├── user/aliases/[alias]/route.ts # PUT/DELETE → mise à jour et suppression
 │       └── auth/[...nextauth]/route.ts
 ├── lib/
 │   ├── scraper/
@@ -105,7 +113,7 @@ src/
 │   │   ├── css.ts          # Stratégie 1 : sélecteurs CSS cheerio
 │   │   ├── rss.ts          # Stratégie 2 : flux RSS/Atom
 │   │   └── regex.ts        # Stratégie 3 : regex sur HTML brut
-│   ├── cache.ts            # Helpers Redis (schéma de clés, TTL, stale fallback, index pseudos)
+│   ├── cache.ts            # Helpers Redis (schéma de clés, TTL, stale fallback, index alias)
 │   ├── discord.ts          # Vérification signature Ed25519 + dispatch commandes
 │   ├── auth.ts             # Config NextAuth (GitHub provider, ALLOWED_GITHUB_LOGIN)
 │   ├── gorafi.config.ts    # URLs, sélecteurs et ordre des stratégies
@@ -113,8 +121,7 @@ src/
 ├── components/
 │   ├── HoroscopeCard.tsx   # Carte signe : lien vers détail + bouton copie
 │   ├── CopyButton.tsx      # Client component — copie presse-papiers avec feedback 2s
-│   ├── PseudoManager.tsx   # Client component — ajout/suppression pseudos
-│   └── PseudoGrid.tsx      # Client component — grille alphabétique avec corbeille + export/import JSON
+│   └── AliasManager.tsx    # Client component — CRUD alias complet (chips, export/import JSON)
 └── styles/
     └── theme.css           # CSS custom properties — toutes les couleurs ici
 tests/

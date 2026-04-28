@@ -92,68 +92,119 @@ export async function setCachedHoroscope(
   await redisSet(staleKey(sign), entry);
 }
 
-function userPseudosKey(githubId: string, sign: Sign): string {
-  return `user:${githubId}:pseudos:${sign}`;
+// ---------------------------------------------------------------------------
+// Aliases
+// An alias maps a user-defined name to one or more zodiac signs.
+// Key schema:
+//   user:{githubId}:alias:{lowerName} → Sign[]          (user-scoped list of signs)
+//   alias:{lowerName}                 → {signs, userId}  (global reverse index)
+// ---------------------------------------------------------------------------
+
+export type AliasEntry = { signs: Sign[]; userId: string };
+
+function userAliasKey(githubId: string, aliasName: string): string {
+  return `user:${githubId}:alias:${aliasName.toLowerCase()}`;
 }
 
-export async function getUserPseudos(githubId: string, sign: Sign): Promise<string[]> {
-  if (!isKvAvailable()) return (localStore.get(userPseudosKey(githubId, sign)) as string[]) ?? [];
-  return (await redisGet<string[]>(userPseudosKey(githubId, sign))) ?? [];
+function aliasIndexKey(aliasName: string): string {
+  return `alias:${aliasName.toLowerCase()}`;
 }
 
-export async function setUserPseudos(
+export async function getUserAlias(githubId: string, aliasName: string): Promise<Sign[] | null> {
+  if (!isKvAvailable())
+    return (localStore.get(userAliasKey(githubId, aliasName)) as Sign[]) ?? null;
+  return redisGet<Sign[]>(userAliasKey(githubId, aliasName));
+}
+
+export async function setUserAlias(
   githubId: string,
-  sign: Sign,
-  pseudos: string[],
+  aliasName: string,
+  signs: Sign[],
 ): Promise<void> {
   if (!isKvAvailable()) {
-    localStore.set(userPseudosKey(githubId, sign), pseudos);
+    localStore.set(userAliasKey(githubId, aliasName), signs);
     return;
   }
-  await redisSet(userPseudosKey(githubId, sign), pseudos);
+  await redisSet(userAliasKey(githubId, aliasName), signs);
 }
 
-function pseudoSignKey(pseudo: string): string {
-  return `pseudo:${pseudo.toLowerCase()}`;
-}
-
-export async function getPseudoSign(
-  pseudo: string,
-): Promise<{ sign: Sign; userId: string } | null> {
-  if (!isKvAvailable())
-    return (localStore.get(pseudoSignKey(pseudo)) as { sign: Sign; userId: string }) ?? null;
-  return redisGet<{ sign: Sign; userId: string }>(pseudoSignKey(pseudo));
-}
-
-export async function setPseudoSign(pseudo: string, sign: Sign, userId: string): Promise<void> {
+export async function deleteUserAlias(githubId: string, aliasName: string): Promise<void> {
   if (!isKvAvailable()) {
-    localStore.set(pseudoSignKey(pseudo), { sign, userId });
+    localStore.delete(userAliasKey(githubId, aliasName));
     return;
   }
-  await redisSet(pseudoSignKey(pseudo), { sign, userId });
+  await redisDel(userAliasKey(githubId, aliasName));
 }
 
-export async function deletePseudoSign(pseudo: string): Promise<void> {
+export async function getAliasIndex(aliasName: string): Promise<AliasEntry | null> {
+  if (!isKvAvailable()) return (localStore.get(aliasIndexKey(aliasName)) as AliasEntry) ?? null;
+  return redisGet<AliasEntry>(aliasIndexKey(aliasName));
+}
+
+export async function setAliasIndex(
+  aliasName: string,
+  signs: Sign[],
+  userId: string,
+): Promise<void> {
   if (!isKvAvailable()) {
-    localStore.delete(pseudoSignKey(pseudo));
+    localStore.set(aliasIndexKey(aliasName), { signs, userId });
     return;
   }
-  await redisDel(pseudoSignKey(pseudo));
+  await redisSet(aliasIndexKey(aliasName), { signs, userId });
 }
 
-export async function getAllPseudoNames(): Promise<string[]> {
+export async function deleteAliasIndex(aliasName: string): Promise<void> {
+  if (!isKvAvailable()) {
+    localStore.delete(aliasIndexKey(aliasName));
+    return;
+  }
+  await redisDel(aliasIndexKey(aliasName));
+}
+
+export async function getAllAliasNames(): Promise<string[]> {
   if (!isKvAvailable()) {
     return Array.from(localStore.keys())
-      .filter((k) => k.startsWith("pseudo:"))
-      .map((k) => k.slice("pseudo:".length));
+      .filter((k) => k.startsWith("alias:"))
+      .map((k) => k.slice("alias:".length));
   }
   const redis = getRedis();
   const names: string[] = [];
   let cursor = "0";
   do {
-    const [nextCursor, keys] = await redis.scan(cursor, "MATCH", "pseudo:*", "COUNT", 100);
+    const [nextCursor, keys] = await redis.scan(cursor, "MATCH", "alias:*", "COUNT", 100);
     cursor = nextCursor;
-    names.push(...keys.map((k) => k.slice("pseudo:".length)));
+    names.push(...keys.map((k) => k.slice("alias:".length)));
   } while (cursor !== "0");
   return names;
+}
+
+export async function getAllUserAliases(githubId: string): Promise<Record<string, Sign[]>> {
+  if (!isKvAvailable()) {
+    const prefix = `user:${githubId}:alias:`;
+    const result: Record<string, Sign[]> = {};
+    for (const [key, value] of localStore.entries()) {
+      if (key.startsWith(prefix)) {
+        result[key.slice(prefix.length)] = value as Sign[];
+      }
+    }
+    return result;
+  }
+  const redis = getRedis();
+  const keys: string[] = [];
+  let cursor = "0";
+  const pattern = `user:${githubId}:alias:*`;
+  do {
+    const [nextCursor, found] = await redis.scan(cursor, "MATCH", pattern, "COUNT", 100);
+    cursor = nextCursor;
+    keys.push(...found);
+  } while (cursor !== "0");
+  if (keys.length === 0) return {};
+  const prefix = `user:${githubId}:alias:`;
+  const values = await Promise.all(keys.map((k) => redisGet<Sign[]>(k)));
+  const result: Record<string, Sign[]> = {};
+  keys.forEach((k, i) => {
+    const signs = values[i];
+    if (signs) result[k.slice(prefix.length)] = signs;
+  });
+  return result;
 }

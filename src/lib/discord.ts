@@ -58,13 +58,13 @@ export function autocompleteSign(typed: string): { name: string; value: string }
   }));
 }
 
-export function autocompletePseudos(
+export function autocompleteAliases(
   typed: string,
-  allPseudos: string[],
+  allAliases: string[],
 ): { name: string; value: string }[] {
   const n = normalize(typed);
   if (!n) return [];
-  return allPseudos.filter((p) => normalize(p).startsWith(n)).map((p) => ({ name: p, value: p }));
+  return allAliases.filter((a) => normalize(a).startsWith(n)).map((a) => ({ name: a, value: a }));
 }
 
 export function handleInteraction(

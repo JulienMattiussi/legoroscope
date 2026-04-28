@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation";
 import { isValidSign, getSign } from "@/lib/signs";
-import { getCachedHoroscope, getUserPseudos } from "@/lib/cache";
+import { getCachedHoroscope, getAllUserAliases } from "@/lib/cache";
 import { auth } from "@/lib/auth";
-import { PseudoManager } from "@/components/PseudoManager";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +16,15 @@ export default async function SignPage({ params }: Props) {
   const meta = getSign(sign)!;
   const data = await getCachedHoroscope(sign);
   const session = await auth();
-  const initialPseudos = session?.user?.id ? await getUserPseudos(session.user.id, sign) : null;
+
+  const coveringAliases: string[] = [];
+  if (session?.user?.id) {
+    const allAliases = await getAllUserAliases(session.user.id);
+    for (const [alias, signs] of Object.entries(allAliases)) {
+      if (signs.includes(sign)) coveringAliases.push(alias);
+    }
+    coveringAliases.sort((a, b) => a.localeCompare(b, "fr", { sensitivity: "base" }));
+  }
 
   return (
     <main style={{ maxWidth: "700px", margin: "0 auto", padding: "2rem 1rem" }}>
@@ -84,7 +91,65 @@ export default async function SignPage({ params }: Props) {
         </p>
       )}
 
-      {initialPseudos !== null && <PseudoManager sign={sign} initialPseudos={initialPseudos} />}
+      {session && (
+        <div
+          style={{ marginTop: "2rem", borderTop: "1px solid var(--border)", paddingTop: "1.5rem" }}
+        >
+          <div
+            style={{ display: "flex", alignItems: "baseline", gap: "0.75rem", flexWrap: "wrap" }}
+          >
+            <h2
+              style={{
+                fontSize: "1rem",
+                fontWeight: 700,
+                color: "var(--brand-dark)",
+                margin: 0,
+              }}
+            >
+              Alias
+            </h2>
+            <Link
+              href="/aliases"
+              style={{ fontSize: "0.8rem", color: "var(--brand)", textDecoration: "none" }}
+            >
+              Gérer →
+            </Link>
+          </div>
+
+          {coveringAliases.length > 0 ? (
+            <ul
+              style={{
+                listStyle: "none",
+                padding: 0,
+                margin: "0.75rem 0 0",
+                display: "flex",
+                flexWrap: "wrap",
+                gap: "0.5rem",
+              }}
+            >
+              {coveringAliases.map((alias) => (
+                <li
+                  key={alias}
+                  style={{
+                    background: "var(--brand-tint)",
+                    border: "1px solid var(--border)",
+                    borderRadius: "var(--radius-sm)",
+                    padding: "0.3rem 0.6rem",
+                    fontSize: "0.9rem",
+                    color: "var(--text)",
+                  }}
+                >
+                  {alias}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginTop: "0.5rem" }}>
+              Aucun alias ne couvre ce signe.
+            </p>
+          )}
+        </div>
+      )}
     </main>
   );
 }
