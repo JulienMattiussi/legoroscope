@@ -33,31 +33,34 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Ce nom est réservé." }, { status: 400 });
   }
 
-  // Remove the pseudo (case-insensitive) from any other sign it might already belong to
-  let movedFrom: string | null = null;
-  await Promise.all(
-    SIGN_SLUGS.filter((s) => s !== sign).map(async (otherSign) => {
-      const others = await getUserPseudos(userId, otherSign);
-      const match = others.find((p) => isSame(p, trimmed));
-      if (match) {
-        await setUserPseudos(
-          userId,
-          otherSign,
-          others.filter((p) => !isSame(p, trimmed)),
-        );
-        movedFrom = getSign(otherSign)?.label ?? otherSign;
-      }
-    }),
-  );
+  try {
+    let movedFrom: string | null = null;
+    await Promise.all(
+      SIGN_SLUGS.filter((s) => s !== sign).map(async (otherSign) => {
+        const others = await getUserPseudos(userId, otherSign);
+        const match = others.find((p) => isSame(p, trimmed));
+        if (match) {
+          await setUserPseudos(
+            userId,
+            otherSign,
+            others.filter((p) => !isSame(p, trimmed)),
+          );
+          movedFrom = getSign(otherSign)?.label ?? otherSign;
+        }
+      }),
+    );
 
-  const pseudos = await getUserPseudos(userId, sign);
-  if (!pseudos.some((p) => isSame(p, trimmed))) {
-    pseudos.push(trimmed);
-    await setUserPseudos(userId, sign, pseudos);
+    const pseudos = await getUserPseudos(userId, sign);
+    if (!pseudos.some((p) => isSame(p, trimmed))) {
+      pseudos.push(trimmed);
+      await setUserPseudos(userId, sign, pseudos);
+    }
+    await setPseudoSign(trimmed, sign, userId);
+
+    return NextResponse.json({ pseudos, movedFrom });
+  } catch {
+    return NextResponse.json({ error: "Erreur lors de la sauvegarde." }, { status: 500 });
   }
-  await setPseudoSign(trimmed, sign, userId);
-
-  return NextResponse.json({ pseudos, movedFrom });
 }
 
 export async function DELETE(req: NextRequest, { params }: Params) {
@@ -68,10 +71,13 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   if (!isValidSign(sign)) return NextResponse.json({ error: "Signe inconnu." }, { status: 404 });
 
   const { pseudo } = (await req.json()) as { pseudo: string };
-  const pseudos = await getUserPseudos(userId, sign);
-  const updated = pseudos.filter((p) => !isSame(p, pseudo));
-  await setUserPseudos(userId, sign, updated);
-  await deletePseudoSign(pseudo);
-
-  return NextResponse.json({ pseudos: updated });
+  try {
+    const pseudos = await getUserPseudos(userId, sign);
+    const updated = pseudos.filter((p) => !isSame(p, pseudo));
+    await setUserPseudos(userId, sign, updated);
+    await deletePseudoSign(pseudo);
+    return NextResponse.json({ pseudos: updated });
+  } catch {
+    return NextResponse.json({ error: "Erreur lors de la suppression." }, { status: 500 });
+  }
 }

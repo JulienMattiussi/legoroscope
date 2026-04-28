@@ -32,15 +32,21 @@ export function PseudoManager({ sign, initialPseudos }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pseudo: trimmed }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error ?? "Une erreur est survenue.");
+      }
       const data = await res.json();
       setPseudos(data.pseudos);
       setInput("");
       if (data.movedFrom) {
         setNotif({ message: `"${trimmed}" déplacé depuis le ${data.movedFrom}.`, type: "info" });
       }
-    } catch {
-      setNotif({ message: "Une erreur est survenue.", type: "error" });
+    } catch (e) {
+      setNotif({
+        message: e instanceof Error ? e.message : "Une erreur est survenue.",
+        type: "error",
+      });
     } finally {
       setSaving(false);
     }
@@ -53,11 +59,17 @@ export function PseudoManager({ sign, initialPseudos }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pseudo }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error ?? "Une erreur est survenue.");
+      }
       const data = await res.json();
       setPseudos(data.pseudos);
-    } catch {
-      setNotif({ message: "Une erreur est survenue.", type: "error" });
+    } catch (e) {
+      setNotif({
+        message: e instanceof Error ? e.message : "Une erreur est survenue.",
+        type: "error",
+      });
     }
   }
 
@@ -163,7 +175,7 @@ export function PseudoManager({ sign, initialPseudos }: Props) {
           style={{
             marginTop: "0.5rem",
             fontSize: "0.85rem",
-            color: notif.type === "error" ? "red" : "var(--brand)",
+            color: notif.type === "error" ? "var(--error)" : "var(--brand)",
           }}
         >
           {notif.message}

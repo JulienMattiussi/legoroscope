@@ -31,7 +31,7 @@ function TrashIcon() {
 export function PseudoGrid({ initialEntries }: { initialEntries: PseudoEntry[] }) {
   const [entries, setEntries] = useState(initialEntries);
   const [confirming, setConfirming] = useState<string | null>(null); // "sign:pseudo"
-  const [importStatus, setImportStatus] = useState<string | null>(null);
+  const [status, setStatus] = useState<{ message: string; isError: boolean } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function handleExport() {
@@ -54,12 +54,12 @@ export function PseudoGrid({ initialEntries }: { initialEntries: PseudoEntry[] }
     try {
       parsed = JSON.parse(await file.text());
     } catch {
-      setImportStatus("Fichier JSON invalide.");
+      setStatus({ message: "Fichier JSON invalide.", isError: true });
       return;
     }
 
     if (!Array.isArray(parsed)) {
-      setImportStatus("Format invalide : tableau attendu.");
+      setStatus({ message: "Format invalide : tableau attendu.", isError: true });
       return;
     }
 
@@ -72,19 +72,29 @@ export function PseudoGrid({ initialEntries }: { initialEntries: PseudoEntry[] }
     );
 
     if (valid.length === 0) {
-      setImportStatus("Aucune entrée valide dans le fichier.");
+      setStatus({ message: "Aucune entrée valide dans le fichier.", isError: true });
       return;
     }
 
-    setImportStatus(`Importation de ${valid.length} pseudo${valid.length > 1 ? "s" : ""}…`);
+    setStatus({
+      message: `Importation de ${valid.length} pseudo${valid.length > 1 ? "s" : ""}…`,
+      isError: false,
+    });
 
     const bulkRes = await fetch("/api/user/pseudos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ entries: valid }),
     });
+
+    if (!bulkRes.ok) {
+      const body = (await bulkRes.json().catch(() => null)) as { error?: string } | null;
+      setStatus({ message: body?.error ?? "Erreur lors de l'importation.", isError: true });
+      return;
+    }
+
     const { message } = (await bulkRes.json()) as { imported: number; message: string };
-    setImportStatus(message);
+    setStatus({ message, isError: false });
 
     // Reload full list from API to reflect moved pseudos
     const res = await fetch("/api/user/pseudos");
@@ -107,6 +117,10 @@ export function PseudoGrid({ initialEntries }: { initialEntries: PseudoEntry[] }
     });
     if (res.ok) {
       setEntries((prev) => prev.filter((e) => e.pseudo !== pseudo || e.sign !== sign));
+      setConfirming(null);
+    } else {
+      const body = (await res.json().catch(() => null)) as { error?: string } | null;
+      setStatus({ message: body?.error ?? "Erreur lors de la suppression.", isError: true });
       setConfirming(null);
     }
   }
@@ -142,9 +156,15 @@ export function PseudoGrid({ initialEntries }: { initialEntries: PseudoEntry[] }
           />
         </div>
       </div>
-      {importStatus && (
-        <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "0.75rem" }}>
-          {importStatus}
+      {status && (
+        <p
+          style={{
+            fontSize: "0.85rem",
+            color: status.isError ? "var(--error)" : "var(--text-muted)",
+            marginBottom: "0.75rem",
+          }}
+        >
+          {status.message}
         </p>
       )}
       {entries.length === 0 && (

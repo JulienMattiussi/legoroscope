@@ -20,6 +20,7 @@
   /* Status */
   --stale: #b45309;
   --stale-bg: #fef3c7;
+  --error: #dc2626;
 
   /* Shadows */
   --shadow: 0 2px 8px rgba(107, 33, 168, 0.12);

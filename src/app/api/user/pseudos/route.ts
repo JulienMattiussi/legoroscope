@@ -43,35 +43,39 @@ export async function POST(req: NextRequest) {
       !SIGN_SLUGS.some((s) => isSame(s, ((e as { pseudo: string }).pseudo ?? "").trim())),
   );
 
-  let imported = 0;
-  for (const { pseudo, sign } of valid) {
-    const trimmed = pseudo.trim();
-    if (!trimmed) continue;
+  try {
+    let imported = 0;
+    for (const { pseudo, sign } of valid) {
+      const trimmed = pseudo.trim();
+      if (!trimmed) continue;
 
-    // Remove from any other sign (case-insensitive)
-    await Promise.all(
-      SIGN_SLUGS.filter((s) => s !== sign).map(async (otherSign) => {
-        const others = await getUserPseudos(userId, otherSign);
-        if (others.some((p) => isSame(p, trimmed))) {
-          await setUserPseudos(
-            userId,
-            otherSign,
-            others.filter((p) => !isSame(p, trimmed)),
-          );
-          await deletePseudoSign(trimmed);
-        }
-      }),
-    );
+      // Remove from any other sign (case-insensitive)
+      await Promise.all(
+        SIGN_SLUGS.filter((s) => s !== sign).map(async (otherSign) => {
+          const others = await getUserPseudos(userId, otherSign);
+          if (others.some((p) => isSame(p, trimmed))) {
+            await setUserPseudos(
+              userId,
+              otherSign,
+              others.filter((p) => !isSame(p, trimmed)),
+            );
+            await deletePseudoSign(trimmed);
+          }
+        }),
+      );
 
-    const pseudos = await getUserPseudos(userId, sign);
-    if (!pseudos.some((p) => isSame(p, trimmed))) {
-      pseudos.push(trimmed);
-      await setUserPseudos(userId, sign, pseudos);
+      const pseudos = await getUserPseudos(userId, sign);
+      if (!pseudos.some((p) => isSame(p, trimmed))) {
+        pseudos.push(trimmed);
+        await setUserPseudos(userId, sign, pseudos);
+      }
+      await setPseudoSign(trimmed, sign, userId);
+      imported++;
     }
-    await setPseudoSign(trimmed, sign, userId);
-    imported++;
-  }
 
-  const label = `${imported} pseudo${imported > 1 ? "s" : ""} importé${imported > 1 ? "s" : ""}`;
-  return NextResponse.json({ imported, message: label });
+    const label = `${imported} pseudo${imported > 1 ? "s" : ""} importé${imported > 1 ? "s" : ""}`;
+    return NextResponse.json({ imported, message: label });
+  } catch {
+    return NextResponse.json({ error: "Erreur lors de l'importation." }, { status: 500 });
+  }
 }

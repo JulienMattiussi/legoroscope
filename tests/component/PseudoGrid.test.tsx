@@ -118,6 +118,18 @@ describe("PseudoGrid — import", () => {
     await screen.findByText("Aucune entrée valide dans le fichier.");
   });
 
+  it("shows error when the API returns a failure", async () => {
+    vi.mocked(fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: false,
+      json: () => Promise.resolve({ error: "Erreur lors de l'importation." }),
+    } as Response);
+
+    render(<PseudoGrid initialEntries={[]} />);
+    triggerFileInput(makeFileWithText(ENTRIES));
+
+    await screen.findByText("Erreur lors de l'importation.");
+  });
+
   it("reloads the list after import", async () => {
     const updated: PseudoEntry[] = [...ENTRIES, { pseudo: "sarah", sign: "verseau" }];
     vi.mocked(fetch as ReturnType<typeof vi.fn>)
@@ -136,5 +148,23 @@ describe("PseudoGrid — import", () => {
     await waitFor(() => {
       expect(screen.getByText("sarah")).toBeInTheDocument();
     });
+  });
+});
+
+describe("PseudoGrid — delete", () => {
+  it("shows error when delete fails", async () => {
+    vi.mocked(fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: false,
+      json: () => Promise.resolve({ error: "Erreur lors de la suppression." }),
+    } as Response);
+
+    render(<PseudoGrid initialEntries={ENTRIES} />);
+
+    // First click: asks for confirmation
+    fireEvent.click(screen.getAllByLabelText(/Supprimer/)[0]!);
+    // Second click: confirms and triggers DELETE fetch
+    fireEvent.click(screen.getByLabelText("Confirmer la suppression"));
+
+    await screen.findByText("Erreur lors de la suppression.");
   });
 });
