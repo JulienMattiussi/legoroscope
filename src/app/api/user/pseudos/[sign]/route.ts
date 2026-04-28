@@ -22,8 +22,6 @@ export async function POST(req: NextRequest, { params }: Params) {
   const userId = await requireUserId();
   if (userId instanceof NextResponse) return userId;
 
-  console.log("[pseudos POST] userId:", userId, "BLOB_TOKEN:", !!process.env.BLOB_READ_WRITE_TOKEN);
-
   const { sign } = await params;
   if (!isValidSign(sign)) return NextResponse.json({ error: "Signe inconnu." }, { status: 404 });
 

@@ -5,7 +5,7 @@
 Avoir configuré les services dans l'ordre suivant (voir les docs dédiées) :
 
 1. [GitHub OAuth](OAUTH.md) — pour l'authentification
-2. [Upstash Redis](KV.md) — pour le cache
+2. [Redis Cloud](REDIS.md) — pour le cache
 3. [Discord](DISCORD.md) — pour le bot slash command
 
 ## 1. Créer le projet sur Vercel
@@ -19,19 +19,18 @@ Avoir configuré les services dans l'ordre suivant (voir les docs dédiées) :
 
 Dans le dashboard Vercel → projet → **Settings** → **Environment Variables** :
 
-| Variable                   | Valeur                                       |
-| -------------------------- | -------------------------------------------- |
-| `AUTH_SECRET`              | `openssl rand -base64 32` (différent du dev) |
-| `AUTH_GITHUB_ID`           | Client ID de l'OAuth App GitHub **prod**     |
-| `AUTH_GITHUB_SECRET`       | Client Secret de l'OAuth App GitHub **prod** |
-| `ALLOWED_GITHUB_LOGIN`     | Ton login GitHub                             |
-| `UPSTASH_REDIS_REST_URL`   | Injectée automatiquement via Vercel Storage  |
-| `UPSTASH_REDIS_REST_TOKEN` | Injectée automatiquement via Vercel Storage  |
-| `DISCORD_PUBLIC_KEY`       | Clé publique de l'application Discord        |
-| `DISCORD_APPLICATION_ID`   | ID de l'application Discord                  |
-| `DISCORD_BOT_TOKEN`        | Token bot Discord                            |
+| Variable                 | Valeur                                       |
+| ------------------------ | -------------------------------------------- |
+| `AUTH_SECRET`            | `openssl rand -base64 32` (différent du dev) |
+| `AUTH_GITHUB_ID`         | Client ID de l'OAuth App GitHub **prod**     |
+| `AUTH_GITHUB_SECRET`     | Client Secret de l'OAuth App GitHub **prod** |
+| `ALLOWED_GITHUB_LOGIN`   | Ton login GitHub                             |
+| `REDIS_URL`              | Injectée automatiquement via Vercel Storage  |
+| `DISCORD_PUBLIC_KEY`     | Clé publique de l'application Discord        |
+| `DISCORD_APPLICATION_ID` | ID de l'application Discord                  |
+| `DISCORD_BOT_TOKEN`      | Token bot Discord                            |
 
-Les variables Upstash sont injectées automatiquement quand le store est connecté au projet (voir [KV.md](KV.md)) — pas besoin de les copier à la main.
+`REDIS_URL` est injectée automatiquement quand le store est connecté au projet (voir [REDIS.md](REDIS.md)) — pas besoin de la copier à la main.
 
 ## 3. Redéployer
 

@@ -1,19 +1,20 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-const { mockGet, mockPut, mockDel, mockList } = vi.hoisted(() => ({
+const { mockGet, mockSet, mockDel } = vi.hoisted(() => ({
   mockGet: vi.fn(),
-  mockPut: vi.fn(),
+  mockSet: vi.fn(),
   mockDel: vi.fn(),
-  mockList: vi.fn(),
 }));
 
-vi.mock("@vercel/blob", () => ({ get: mockGet, put: mockPut, del: mockDel, list: mockList }));
+vi.mock("ioredis", () => ({
+  default: vi.fn().mockReturnValue({ get: mockGet, set: mockSet, del: mockDel }),
+}));
 
 import { getCachedHoroscope, setCachedHoroscope } from "@/lib/cache";
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.stubEnv("BLOB_READ_WRITE_TOKEN", "vercel_blob_rw_test");
+  vi.stubEnv("REDIS_URL", "redis://default:test@localhost:6379");
 });
 
 afterEach(() => {
@@ -25,41 +26,16 @@ const ENTRY = {
   fetchedAt: new Date().toISOString(),
   strategy: "css" as const,
 };
+
 const STALE = {
   text: "Vieux horoscope",
   fetchedAt: "2026-01-01T00:00:00.000Z",
   strategy: "rss" as const,
 };
 
-function makeStream(data: unknown): ReadableStream<Uint8Array> {
-  const bytes = new TextEncoder().encode(JSON.stringify(data));
-  return new ReadableStream({
-    start(c) {
-      c.enqueue(bytes);
-      c.close();
-    },
-  });
-}
-
-function blobEntry(pathname: string, data: unknown) {
-  return { blobs: [{ url: `https://blob/${pathname}`, pathname }] };
-}
-
-function getFound(data: unknown) {
-  const bytes = new TextEncoder().encode(JSON.stringify(data));
-  const stream = new ReadableStream<Uint8Array>({
-    start(c) {
-      c.enqueue(bytes);
-      c.close();
-    },
-  });
-  return { statusCode: 200 as const, stream, headers: new Headers(), blob: {} };
-}
-
 describe("getCachedHoroscope", () => {
   it("returns cached data when the weekly key exists", async () => {
-    mockList.mockResolvedValueOnce(blobEntry("horoscope/2026/18/lion", ENTRY));
-    mockGet.mockResolvedValueOnce(getFound(ENTRY));
+    mockGet.mockResolvedValueOnce(JSON.stringify(ENTRY));
 
     const result = await getCachedHoroscope("lion");
     expect(result?.text).toBe("Horoscope test");
@@ -67,10 +43,7 @@ describe("getCachedHoroscope", () => {
   });
 
   it("falls back to stale data when weekly key is missing", async () => {
-    mockList
-      .mockResolvedValueOnce({ blobs: [] }) // weekly miss
-      .mockResolvedValueOnce(blobEntry("horoscope/stale/lion", STALE));
-    mockGet.mockResolvedValueOnce(getFound(STALE));
+    mockGet.mockResolvedValueOnce(null).mockResolvedValueOnce(JSON.stringify(STALE));
 
     const result = await getCachedHoroscope("lion");
     expect(result?.text).toBe("Vieux horoscope");
@@ -79,7 +52,7 @@ describe("getCachedHoroscope", () => {
   });
 
   it("returns null when both keys are missing", async () => {
-    mockList.mockResolvedValue({ blobs: [] });
+    mockGet.mockResolvedValue(null);
     const result = await getCachedHoroscope("lion");
     expect(result).toBeNull();
   });
@@ -87,10 +60,20 @@ describe("getCachedHoroscope", () => {
 
 describe("setCachedHoroscope", () => {
   it("writes both weekly key and stale key", async () => {
-    mockPut.mockResolvedValue({ url: "https://blob/x" });
+    mockSet.mockResolvedValue("OK");
     await setCachedHoroscope("scorpion", { text: "Horoscope", strategy: "css" });
-    expect(mockPut).toHaveBeenCalledTimes(2);
-    expect(mockPut.mock.calls[0]?.[0]).toMatch(/^horoscope\/\d+\/\d+\/scorpion$/);
-    expect(mockPut.mock.calls[1]?.[0]).toBe("horoscope/stale/scorpion");
+    expect(mockSet).toHaveBeenCalledTimes(2);
+    expect(mockSet.mock.calls[0]?.[0]).toMatch(/^horoscope:\d+:\d+:scorpion$/);
+    expect(mockSet.mock.calls[1]?.[0]).toBe("horoscope:stale:scorpion");
+  });
+
+  it("sets a TTL on the weekly key but not the stale key", async () => {
+    mockSet.mockResolvedValue("OK");
+    await setCachedHoroscope("lion", { text: "Horoscope", strategy: "css" });
+    // weekly key: set(key, value, "EX", seconds)
+    expect(mockSet.mock.calls[0]?.[2]).toBe("EX");
+    expect(mockSet.mock.calls[0]?.[3]).toBeGreaterThan(0);
+    // stale key: set(key, value) — no TTL args
+    expect(mockSet.mock.calls[1]?.[2]).toBeUndefined();
   });
 });

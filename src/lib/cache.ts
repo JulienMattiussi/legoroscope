@@ -1,41 +1,40 @@
-import { put, list, del, get } from "@vercel/blob";
+import Redis from "ioredis";
 import type { Sign } from "@/lib/signs";
 import type { StrategyName } from "@/lib/scraper";
 
-const isKvAvailable = () => !!process.env.BLOB_READ_WRITE_TOKEN;
+const isKvAvailable = () => !!process.env.REDIS_URL;
 
-async function blobGet<T>(key: string): Promise<T | null> {
-  try {
-    const { blobs } = await list({ prefix: key, limit: 1 });
-    if (!blobs.length || blobs[0]!.pathname !== key) return null;
-    const res = await get(blobs[0]!.url, { access: "private" });
-    if (!res || res.statusCode !== 200) return null;
-    const text = await new Response(res.stream).text();
-    return JSON.parse(text) as T;
-  } catch {
-    return null;
+// Singleton: reuses the TCP connection across requests in the same process/warm container.
+const g = global as typeof global & { _redisClient?: Redis };
+function getRedis(): Redis {
+  if (!g._redisClient) {
+    g._redisClient = new Redis(process.env.REDIS_URL!);
+  }
+  return g._redisClient;
+}
+
+async function redisGet<T>(key: string): Promise<T | null> {
+  const raw = await getRedis().get(key);
+  return raw ? (JSON.parse(raw) as T) : null;
+}
+
+async function redisSet(key: string, value: unknown, ttlSeconds?: number): Promise<void> {
+  const serialized = JSON.stringify(value);
+  if (ttlSeconds !== undefined) {
+    await getRedis().set(key, serialized, "EX", ttlSeconds);
+  } else {
+    await getRedis().set(key, serialized);
   }
 }
 
-async function blobSet(key: string, value: unknown): Promise<void> {
-  console.log("[blobSet] key:", key);
-  await put(key, JSON.stringify(value), {
-    access: "private",
-    contentType: "application/json",
-    addRandomSuffix: false,
-    allowOverwrite: true,
-  });
+async function redisDel(key: string): Promise<void> {
+  await getRedis().del(key);
 }
 
-async function blobDel(key: string): Promise<void> {
-  const { blobs } = await list({ prefix: key, limit: 1 });
-  if (blobs.length) await del(blobs[0]!.url);
-}
-
-// In-memory fallback for local dev (no BLOB_READ_WRITE_TOKEN). Survives Next.js HMR.
-const g = global as typeof global & { _localStore?: Map<string, unknown> };
-g._localStore ??= new Map();
-const localStore = g._localStore;
+// In-memory fallback for local dev (no REDIS_URL). Survives Next.js HMR.
+const gStore = global as typeof global & { _localStore?: Map<string, unknown> };
+gStore._localStore ??= new Map();
+const localStore = gStore._localStore;
 
 export type CachedHoroscope = {
   text: string;
@@ -57,11 +56,11 @@ function currentWeekKey(): { year: number; week: number } {
 
 function weekKey(sign: Sign): string {
   const { year, week } = currentWeekKey();
-  return `horoscope/${year}/${week}/${sign}`;
+  return `horoscope:${year}:${week}:${sign}`;
 }
 
 function staleKey(sign: Sign): string {
-  return `horoscope/stale/${sign}`;
+  return `horoscope:stale:${sign}`;
 }
 
 export async function getCachedHoroscope(sign: Sign): Promise<CachedHoroscope | null> {
@@ -72,9 +71,9 @@ export async function getCachedHoroscope(sign: Sign): Promise<CachedHoroscope | 
     if (stale) return { ...stale, strategy: "stale", stale: true };
     return null;
   }
-  const cached = await blobGet<CachedHoroscope>(weekKey(sign));
+  const cached = await redisGet<CachedHoroscope>(weekKey(sign));
   if (cached) return cached;
-  const stale = await blobGet<CachedHoroscope>(staleKey(sign));
+  const stale = await redisGet<CachedHoroscope>(staleKey(sign));
   if (stale) return { ...stale, strategy: "stale", stale: true };
   return null;
 }
@@ -89,17 +88,17 @@ export async function setCachedHoroscope(
     localStore.set(staleKey(sign), entry);
     return;
   }
-  await blobSet(weekKey(sign), entry);
-  await blobSet(staleKey(sign), entry);
+  await redisSet(weekKey(sign), entry, 8 * 24 * 3600);
+  await redisSet(staleKey(sign), entry);
 }
 
 function userPseudosKey(githubId: string, sign: Sign): string {
-  return `user/${githubId}/pseudos/${sign}`;
+  return `user:${githubId}:pseudos:${sign}`;
 }
 
 export async function getUserPseudos(githubId: string, sign: Sign): Promise<string[]> {
   if (!isKvAvailable()) return (localStore.get(userPseudosKey(githubId, sign)) as string[]) ?? [];
-  return (await blobGet<string[]>(userPseudosKey(githubId, sign))) ?? [];
+  return (await redisGet<string[]>(userPseudosKey(githubId, sign))) ?? [];
 }
 
 export async function setUserPseudos(
@@ -111,11 +110,11 @@ export async function setUserPseudos(
     localStore.set(userPseudosKey(githubId, sign), pseudos);
     return;
   }
-  await blobSet(userPseudosKey(githubId, sign), pseudos);
+  await redisSet(userPseudosKey(githubId, sign), pseudos);
 }
 
 function pseudoSignKey(pseudo: string): string {
-  return `pseudo/${pseudo.toLowerCase()}`;
+  return `pseudo:${pseudo.toLowerCase()}`;
 }
 
 export async function getPseudoSign(
@@ -123,7 +122,7 @@ export async function getPseudoSign(
 ): Promise<{ sign: Sign; userId: string } | null> {
   if (!isKvAvailable())
     return (localStore.get(pseudoSignKey(pseudo)) as { sign: Sign; userId: string }) ?? null;
-  return blobGet<{ sign: Sign; userId: string }>(pseudoSignKey(pseudo));
+  return redisGet<{ sign: Sign; userId: string }>(pseudoSignKey(pseudo));
 }
 
 export async function setPseudoSign(pseudo: string, sign: Sign, userId: string): Promise<void> {
@@ -131,7 +130,7 @@ export async function setPseudoSign(pseudo: string, sign: Sign, userId: string):
     localStore.set(pseudoSignKey(pseudo), { sign, userId });
     return;
   }
-  await blobSet(pseudoSignKey(pseudo), { sign, userId });
+  await redisSet(pseudoSignKey(pseudo), { sign, userId });
 }
 
 export async function deletePseudoSign(pseudo: string): Promise<void> {
@@ -139,5 +138,5 @@ export async function deletePseudoSign(pseudo: string): Promise<void> {
     localStore.delete(pseudoSignKey(pseudo));
     return;
   }
-  await blobDel(pseudoSignKey(pseudo));
+  await redisDel(pseudoSignKey(pseudo));
 }

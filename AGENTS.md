@@ -12,7 +12,7 @@ Horoscope scraper from Le Gorafi, served via a Next.js API, displayed in a Disco
 
 ## What this project is
 
-- **API**: scrapes Le Gorafi horoscopes (13 signs including Furet), caches results by week in Vercel KV, serves each sign on a dedicated route. Also resolves pseudos to their associated sign.
+- **API**: scrapes Le Gorafi horoscopes (13 signs including Furet), caches results by week in Redis, serves each sign on a dedicated route. Also resolves pseudos to their associated sign.
 - **Discord**: slash-command bot using Discord Interactions webhooks (serverless-compatible, no persistent gateway connection).
 - **Frontend**: Next.js web app with GitHub OAuth (NextAuth) to display horoscopes and manage pseudo↔sign associations.
 
@@ -21,7 +21,7 @@ Deployed on Vercel free tier.
 ## Stack
 
 - **Next.js 15** — App Router, TypeScript strict, API routes as Route Handlers
-- **Vercel Blob** (`@vercel/blob`) — weekly horoscope cache + user pseudo associations + pseudo index; `BLOB_READ_WRITE_TOKEN` auto-injected by Vercel at runtime
+- **Redis Cloud** (`ioredis`) — weekly horoscope cache (8-day TTL) + user pseudo associations + pseudo index; `REDIS_URL` injected by Vercel at runtime (format: `redis://default:token@host:port`)
 - **NextAuth v5** — GitHub OAuth session management
 - **cheerio** — HTML scraping (CSS and RSS strategies)
 - **Vitest** + `@testing-library/react` — unit and component tests
@@ -51,7 +51,7 @@ src/
 │   │   ├── css.ts         # strategy: cheerio CSS selectors
 │   │   ├── rss.ts         # strategy: RSS/Atom feed
 │   │   └── regex.ts       # strategy: regex on raw HTML
-│   ├── cache.ts           # Vercel KV helpers (key schema, TTL, stale fallback, pseudo index)
+│   ├── cache.ts           # Redis helpers (key schema, TTL, stale fallback, pseudo index)
 │   ├── discord.ts         # Ed25519 signature verification + command dispatch
 │   ├── auth.ts            # NextAuth config (GitHub provider, ALLOWED_GITHUB_LOGIN)
 │   ├── gorafi.config.ts   # scraping URLs, selectors, and strategy order
@@ -75,7 +75,7 @@ Slugs: `belier`, `taureau`, `gemeaux`, `cancer`, `lion`, `vierge`, `balance`, `s
 
 Le Furet est le 13e signe bonus du Gorafi — présent occasionnellement dans les articles, absent le reste du temps (la page affiche alors "non disponible").
 
-## KV key schema
+## Redis key schema
 
 | Key                              | Value                                                      |
 | -------------------------------- | ---------------------------------------------------------- |
@@ -107,7 +107,7 @@ Current order: `["css", "rss", "regex"]`. To change it, edit `strategyOrder` in 
 
 Each strategy returns a `StrategyOutput` (`{ results, sourceUrl }`), exported from `scraper/index.ts`. The `sourceUrl` (specific article URL) is stored in the cache and shown as a link on the home page.
 
-After all strategies fail, the caller falls back to stale KV (returned with `stale: true`).
+After all strategies fail, the caller falls back to stale cache (returned with `stale: true`).
 
 All pure parsing functions (`extractSignsFromArticle`, `extractSignsWithRegex`, `extractLatestArticleUrl`, `extractFromRssInlineContent`) are exported and covered by unit tests in `tests/unit/scraper-strategies.test.ts`.
 
@@ -142,13 +142,13 @@ AUTH_SECRET=              # random 32-char secret
 AUTH_GITHUB_ID=           # GitHub OAuth App client ID
 AUTH_GITHUB_SECRET=       # GitHub OAuth App client secret
 ALLOWED_GITHUB_LOGIN=     # GitHub username allowed to sign in
-BLOB_READ_WRITE_TOKEN=    # auto-injected by Vercel Blob at runtime; add to .env.local for local dev
+REDIS_URL=                # from Vercel Storage > Serverless Redis; pull with: npx vercel env pull
 DISCORD_PUBLIC_KEY=       # for Ed25519 signature verification
 DISCORD_APPLICATION_ID=
 DISCORD_BOT_TOKEN=        # for registering commands
 ```
 
-When `BLOB_READ_WRITE_TOKEN` is absent (local dev), `cache.ts` falls back to an in-memory `Map` on `global._localStore` that survives Next.js HMR.
+When `REDIS_URL` is absent (local dev), `cache.ts` falls back to an in-memory `Map` on `global._localStore` that survives Next.js HMR.
 
 ## Current status (as of 2026-04-27)
 
@@ -157,7 +157,7 @@ The codebase is functionally complete. All checks and unit tests pass (62 tests)
 ### Done
 
 - **Scraper** — 3 strategies (CSS, RSS, regex) with fallback orchestrator; strategy order in `gorafi.config.ts`; `sourceUrl` (article URL) threaded through scraper → cache → API → UI.
-- **KV cache** — weekly key + stale fallback + global pseudo reverse index; all reads/writes go through `src/lib/cache.ts`; in-memory fallback for local dev.
+- **Redis cache** — weekly key (8-day TTL) + stale fallback + global pseudo reverse index; all reads/writes go through `src/lib/cache.ts`; in-memory fallback for local dev.
 - **API routes** — `/api/horoscope/[identifier]` resolves both sign slugs and pseudos; full pseudo CRUD; Discord; auth.
 - **Discord** — Ed25519 verification + command dispatch; `/api/discord` handles PING and `APPLICATION_COMMAND`.
 - **Auth** — NextAuth v5 GitHub OAuth; single allowed login via `ALLOWED_GITHUB_LOGIN` env var.
@@ -199,7 +199,7 @@ Every feature, change, or bug fix must be accompanied by:
 - **No speculative abstractions.** Don't add helpers, fallbacks or features that aren't required by the current task.
 - **All scraper strategy parsing functions must be exported and independently testable** (pure functions, no network calls).
 - **No network calls in unit tests** — mock at the strategy boundary (`scrapeAllWithCSS`, `scrapeAllWithRSS`, `scrapeAllWithRegex`).
-- **KV reads/writes via `src/lib/cache.ts`** — never call `@vercel/kv` directly in route handlers.
+- **Redis reads/writes via `src/lib/cache.ts`** — never call `ioredis` directly in route handlers.
 - **Client components** — any component using hooks (`useState`, `useEffect`) or event handlers must have `"use client"` as its first line.
 - **Buttons inside `<Link>`** — use `e.stopPropagation()` in the button's onClick to prevent the parent link from navigating.
 - **CSS hover/focus effects** — inline styles don't support `:hover`. Add a CSS class in `src/app/globals.css` instead.
