@@ -6,7 +6,7 @@ import { scrapeAllHoroscopes, ScrapingError } from "@/lib/scraper";
 
 async function warmAndGet(sign: Sign): Promise<{ sign: Sign } & Record<string, unknown>> {
   const cached = await getCachedHoroscope(sign);
-  if (cached) return { ...cached, sign };
+  if (cached && !cached.stale) return { ...cached, sign };
 
   const all = await scrapeAllHoroscopes();
   if (Object.keys(all).length === 0) throw new ScrapingError(sign);
@@ -46,7 +46,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ sig
     try {
       // Warm cache once if any sign is missing
       const cachedAll = await Promise.all(aliasEntry.signs.map((s) => getCachedHoroscope(s)));
-      const hasMiss = cachedAll.some((c) => c === null);
+      const hasMiss = cachedAll.some((c) => c === null || c.stale);
       if (hasMiss) {
         const all = await scrapeAllHoroscopes();
         for (const [s, result] of Object.entries(all)) {
