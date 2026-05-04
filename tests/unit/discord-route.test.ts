@@ -8,6 +8,7 @@ vi.mock("@/lib/discord", async (importOriginal) => {
 
 vi.mock("@/lib/cache", () => ({
   getCachedHoroscope: vi.fn(),
+  getStaleCachedHoroscope: vi.fn().mockResolvedValue(null),
   setCachedHoroscope: vi.fn().mockResolvedValue(undefined),
   getAliasIndex: vi.fn().mockResolvedValue(null),
   getAllAliasNames: vi.fn().mockResolvedValue([]),
@@ -18,7 +19,13 @@ vi.mock("@/lib/scraper", () => ({
 }));
 
 import { POST } from "@/app/api/discord/route";
-import { getCachedHoroscope, getAliasIndex, getAllAliasNames } from "@/lib/cache";
+import {
+  getCachedHoroscope,
+  setCachedHoroscope,
+  getAliasIndex,
+  getAllAliasNames,
+} from "@/lib/cache";
+import { scrapeAllHoroscopes } from "@/lib/scraper";
 
 function makeRequest(body: object): NextRequest {
   const json = JSON.stringify(body);
@@ -28,11 +35,17 @@ function makeRequest(body: object): NextRequest {
   } as unknown as NextRequest;
 }
 
-const cached = (text: string) => ({ text, fetchedAt: "", strategy: "css" as const });
+const fresh = (text: string) => ({ text, fetchedAt: "", strategy: "css" as const });
+const stale = (text: string) => ({
+  text,
+  fetchedAt: "",
+  strategy: "stale" as const,
+  stale: true as const,
+});
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(getCachedHoroscope).mockResolvedValue(cached("Horoscope test."));
+  vi.mocked(getCachedHoroscope).mockResolvedValue(fresh("Horoscope test."));
   vi.mocked(getAliasIndex).mockResolvedValue(null);
 });
 
@@ -146,6 +159,32 @@ describe("Discord route - multiple signs", () => {
     expect(data.content).toContain("Lion");
     expect(data.content).toContain("Bélier");
     expect(data.content.split("\n")).toHaveLength(3);
+  });
+});
+
+describe("Discord route - cache miss triggers scraping", () => {
+  it("scrapes when cache is absent and returns fresh text", async () => {
+    vi.mocked(getCachedHoroscope).mockResolvedValue(null);
+    vi.mocked(scrapeAllHoroscopes).mockResolvedValue({
+      lion: { text: "Horoscope semaine courante.", strategy: "css", sourceUrl: "http://x" },
+    });
+
+    const res = await POST(
+      makeRequest({ type: 2, data: { options: [{ name: "signe", value: "lion" }] } }),
+    );
+    const { data } = await res.json();
+
+    expect(scrapeAllHoroscopes).toHaveBeenCalledOnce();
+    expect(setCachedHoroscope).toHaveBeenCalled();
+    expect(data.content).toContain("Horoscope semaine courante.");
+  });
+
+  it("does not scrape when cache is fresh", async () => {
+    vi.mocked(getCachedHoroscope).mockResolvedValue(fresh("Horoscope frais."));
+
+    await POST(makeRequest({ type: 2, data: { options: [{ name: "signe", value: "lion" }] } }));
+
+    expect(scrapeAllHoroscopes).not.toHaveBeenCalled();
   });
 });
 

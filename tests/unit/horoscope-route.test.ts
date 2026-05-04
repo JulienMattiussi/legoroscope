@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 
 vi.mock("@/lib/cache", () => ({
   getCachedHoroscope: vi.fn(),
+  getStaleCachedHoroscope: vi.fn().mockResolvedValue(null),
   setCachedHoroscope: vi.fn().mockResolvedValue(undefined),
   getAliasIndex: vi.fn().mockResolvedValue(null),
 }));
@@ -18,7 +19,7 @@ vi.mock("@/lib/scraper", () => ({
 }));
 
 import { GET } from "@/app/api/horoscope/[sign]/route";
-import { getCachedHoroscope, setCachedHoroscope } from "@/lib/cache";
+import { getCachedHoroscope, getStaleCachedHoroscope, setCachedHoroscope } from "@/lib/cache";
 import { scrapeAllHoroscopes } from "@/lib/scraper";
 
 function makeRequest(): NextRequest {
@@ -29,14 +30,23 @@ function makeParams(sign: string) {
   return { params: Promise.resolve({ sign }) };
 }
 
-const fresh = (text: string) => ({ text, fetchedAt: "2026-05-04T10:00:00Z", strategy: "css" as const });
-const stale = (text: string) => ({ text, fetchedAt: "2026-04-28T10:00:00Z", strategy: "stale" as const, stale: true as const });
+const fresh = (text: string) => ({
+  text,
+  fetchedAt: "2026-05-04T10:00:00Z",
+  strategy: "css" as const,
+});
+const stale = (text: string) => ({
+  text,
+  fetchedAt: "2026-04-28T10:00:00Z",
+  strategy: "stale" as const,
+  stale: true as const,
+});
 
 beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe("GET /api/horoscope/[sign] - stale cache triggers scraping", () => {
+describe("GET /api/horoscope/[sign] - cache miss triggers scraping", () => {
   it("returns fresh cache without scraping", async () => {
     vi.mocked(getCachedHoroscope).mockResolvedValue(fresh("Horoscope frais."));
 
@@ -47,9 +57,9 @@ describe("GET /api/horoscope/[sign] - stale cache triggers scraping", () => {
     expect(scrapeAllHoroscopes).not.toHaveBeenCalled();
   });
 
-  it("scrapes when cache is stale (new week)", async () => {
+  it("scrapes when cache is absent (new week)", async () => {
     vi.mocked(getCachedHoroscope)
-      .mockResolvedValueOnce(stale("Vieux horoscope."))
+      .mockResolvedValueOnce(null)
       .mockResolvedValue(fresh("Horoscope semaine courante."));
     vi.mocked(scrapeAllHoroscopes).mockResolvedValue({
       lion: { text: "Horoscope semaine courante.", strategy: "css", sourceUrl: "http://x" },
@@ -63,29 +73,26 @@ describe("GET /api/horoscope/[sign] - stale cache triggers scraping", () => {
     expect(body.text).toBe("Horoscope semaine courante.");
   });
 
-  it("scrapes when cache is absent", async () => {
-    vi.mocked(getCachedHoroscope)
-      .mockResolvedValueOnce(null)
-      .mockResolvedValue(fresh("Horoscope nouveau."));
-    vi.mocked(scrapeAllHoroscopes).mockResolvedValue({
-      lion: { text: "Horoscope nouveau.", strategy: "css", sourceUrl: "http://x" },
-    });
+  it("returns stale data when scraping fails", async () => {
+    vi.mocked(getCachedHoroscope).mockResolvedValue(null);
+    vi.mocked(getStaleCachedHoroscope).mockResolvedValue(stale("Vieux horoscope."));
+    vi.mocked(scrapeAllHoroscopes).mockResolvedValue({});
 
     const res = await GET(makeRequest(), makeParams("lion"));
     const body = await res.json();
 
-    expect(scrapeAllHoroscopes).toHaveBeenCalledOnce();
-    expect(body.text).toBe("Horoscope nouveau.");
+    expect(body.text).toBe("Vieux horoscope.");
+    expect(body.stale).toBe(true);
   });
 });
 
-describe("GET /api/horoscope/[sign] - alias with stale cache triggers scraping", () => {
-  it("scrapes when alias signs have stale cache", async () => {
+describe("GET /api/horoscope/[sign] - alias", () => {
+  it("scrapes when alias signs are absent from cache", async () => {
     const { getAliasIndex } = await import("@/lib/cache");
     vi.mocked(getAliasIndex).mockResolvedValue({ signs: ["lion", "cancer"], userId: "u1" });
     vi.mocked(getCachedHoroscope)
-      .mockResolvedValueOnce(stale("Vieux lion."))
-      .mockResolvedValueOnce(stale("Vieux cancer."))
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
       .mockResolvedValue(fresh("Horoscope à jour."));
     vi.mocked(scrapeAllHoroscopes).mockResolvedValue({
       lion: { text: "Lion à jour.", strategy: "css", sourceUrl: "http://x" },

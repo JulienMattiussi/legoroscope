@@ -63,19 +63,22 @@ function staleKey(sign: Sign): string {
   return `horoscope:stale:${sign}`;
 }
 
+// Returns current week's data only. Returns null when absent (triggers scraping).
 export async function getCachedHoroscope(sign: Sign): Promise<CachedHoroscope | null> {
   if (!isKvAvailable()) {
-    const cached = localStore.get(weekKey(sign)) as CachedHoroscope | undefined;
-    if (cached) return cached;
-    const stale = localStore.get(staleKey(sign)) as CachedHoroscope | undefined;
-    if (stale) return { ...stale, strategy: "stale", stale: true };
-    return null;
+    return (localStore.get(weekKey(sign)) as CachedHoroscope) ?? null;
   }
-  const cached = await redisGet<CachedHoroscope>(weekKey(sign));
-  if (cached) return cached;
+  return redisGet<CachedHoroscope>(weekKey(sign));
+}
+
+// Returns last known good data when scraping fails. Always a fallback of last resort.
+export async function getStaleCachedHoroscope(sign: Sign): Promise<CachedHoroscope | null> {
+  if (!isKvAvailable()) {
+    const stale = localStore.get(staleKey(sign)) as CachedHoroscope | undefined;
+    return stale ? { ...stale, strategy: "stale", stale: true } : null;
+  }
   const stale = await redisGet<CachedHoroscope>(staleKey(sign));
-  if (stale) return { ...stale, strategy: "stale", stale: true };
-  return null;
+  return stale ? { ...stale, strategy: "stale", stale: true } : null;
 }
 
 export async function setCachedHoroscope(

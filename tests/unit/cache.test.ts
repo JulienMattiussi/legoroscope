@@ -13,6 +13,7 @@ vi.mock("ioredis", () => ({
 
 import {
   getCachedHoroscope,
+  getStaleCachedHoroscope,
   setCachedHoroscope,
   getUserAlias,
   setUserAlias,
@@ -54,18 +55,26 @@ describe("getCachedHoroscope", () => {
     expect(result?.stale).toBeUndefined();
   });
 
-  it("falls back to stale data when weekly key is missing", async () => {
-    mockGet.mockResolvedValueOnce(null).mockResolvedValueOnce(JSON.stringify(STALE));
-
+  it("returns null when weekly key is missing (no stale fallback)", async () => {
+    mockGet.mockResolvedValue(null);
     const result = await getCachedHoroscope("lion");
+    expect(result).toBeNull();
+  });
+});
+
+describe("getStaleCachedHoroscope", () => {
+  it("returns stale data when stale key is present", async () => {
+    mockGet.mockResolvedValueOnce(JSON.stringify(STALE));
+
+    const result = await getStaleCachedHoroscope("lion");
     expect(result?.text).toBe("Vieux horoscope");
     expect(result?.stale).toBe(true);
     expect(result?.strategy).toBe("stale");
   });
 
-  it("returns null when both keys are missing", async () => {
+  it("returns null when stale key is missing", async () => {
     mockGet.mockResolvedValue(null);
-    const result = await getCachedHoroscope("lion");
+    const result = await getStaleCachedHoroscope("lion");
     expect(result).toBeNull();
   });
 });
@@ -198,7 +207,7 @@ describe("local store fallback (no REDIS_URL)", () => {
     expect(result?.stale).toBeUndefined();
   });
 
-  it("getCachedHoroscope returns stale when weekly key absent but stale key present", async () => {
+  it("getStaleCachedHoroscope returns stale when weekly key absent but stale key present", async () => {
     await setCachedHoroscope("taureau", { text: "Ancien horoscope", strategy: "rss" });
     const now = new Date();
     const jan4 = new Date(now.getFullYear(), 0, 4);
@@ -207,7 +216,8 @@ describe("local store fallback (no REDIS_URL)", () => {
     const diff = now.getTime() - startOfWeek1.getTime();
     const week = Math.floor(diff / (7 * 24 * 60 * 60 * 1000)) + 1;
     g._localStore?.delete(`horoscope:${now.getFullYear()}:${week}:taureau`);
-    const result = await getCachedHoroscope("taureau");
+    expect(await getCachedHoroscope("taureau")).toBeNull();
+    const result = await getStaleCachedHoroscope("taureau");
     expect(result?.text).toBe("Ancien horoscope");
     expect(result?.stale).toBe(true);
   });

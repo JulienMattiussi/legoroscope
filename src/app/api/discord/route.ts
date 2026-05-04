@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
   const results: SignResult[] = signMetas.map((s, i) => ({
     label: s.label,
     emoji: s.emoji,
-    horoscope: cachedResults[i]?.text ?? fresh[s.slug]?.text ?? null,
+    horoscope: fresh[s.slug]?.text ?? cachedResults[i]?.text ?? null,
   }));
 
   return NextResponse.json(handleInteraction(interaction, results));

@@ -1,15 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isValidSign, findSignByInput } from "@/lib/signs";
 import type { Sign } from "@/lib/signs";
-import { getCachedHoroscope, setCachedHoroscope, getAliasIndex } from "@/lib/cache";
+import {
+  getCachedHoroscope,
+  getStaleCachedHoroscope,
+  setCachedHoroscope,
+  getAliasIndex,
+} from "@/lib/cache";
 import { scrapeAllHoroscopes, ScrapingError } from "@/lib/scraper";
 
 async function warmAndGet(sign: Sign): Promise<{ sign: Sign } & Record<string, unknown>> {
   const cached = await getCachedHoroscope(sign);
-  if (cached && !cached.stale) return { ...cached, sign };
+  if (cached) return { ...cached, sign };
 
   const all = await scrapeAllHoroscopes();
-  if (Object.keys(all).length === 0) throw new ScrapingError(sign);
+  if (Object.keys(all).length === 0) {
+    const stale = await getStaleCachedHoroscope(sign);
+    if (stale) return { ...stale, sign };
+    throw new ScrapingError(sign);
+  }
 
   const now = new Date().toISOString();
   for (const [s, result] of Object.entries(all)) {
@@ -17,7 +26,11 @@ async function warmAndGet(sign: Sign): Promise<{ sign: Sign } & Record<string, u
   }
 
   const result = all[sign];
-  if (!result) throw new ScrapingError(sign);
+  if (!result) {
+    const stale = await getStaleCachedHoroscope(sign);
+    if (stale) return { ...stale, sign };
+    throw new ScrapingError(sign);
+  }
   return { ...result, fetchedAt: now, sign };
 }
 
@@ -44,9 +57,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ sig
   const aliasEntry = await getAliasIndex(param);
   if (aliasEntry && aliasEntry.signs.length > 0) {
     try {
-      // Warm cache once if any sign is missing
       const cachedAll = await Promise.all(aliasEntry.signs.map((s) => getCachedHoroscope(s)));
-      const hasMiss = cachedAll.some((c) => c === null || c.stale);
+      const hasMiss = cachedAll.some((c) => c === null);
       if (hasMiss) {
         const all = await scrapeAllHoroscopes();
         for (const [s, result] of Object.entries(all)) {
@@ -55,7 +67,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ sig
       }
       const results = await Promise.all(
         aliasEntry.signs.map(async (s) => {
-          const h = await getCachedHoroscope(s);
+          const h = (await getCachedHoroscope(s)) ?? (await getStaleCachedHoroscope(s));
           return h ? { ...h, sign: s } : { sign: s, text: null };
         }),
       );
