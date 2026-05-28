@@ -41,6 +41,7 @@ src/
 │   └── api/
 │       ├── horoscope/[sign]/route.ts     # GET → by sign slug (object) OR alias name (array)
 │       ├── horoscopes/route.ts           # GET → all 13 signs at once
+│       ├── horoscopes/refresh/route.ts   # POST → force rescrape + overwrite cache (auth)
 │       ├── discord/route.ts              # POST → Discord interactions
 │       ├── user/aliases/route.ts         # GET → all aliases; POST → create or bulk import
 │       ├── user/aliases/[alias]/route.ts # PUT → update signs; DELETE → delete alias
@@ -59,6 +60,7 @@ src/
 ├── components/
 │   ├── HoroscopeCard.tsx  # card: Link body (sign detail) + copy button top-right
 │   ├── CopyButton.tsx     # client component - clipboard copy with 2s feedback
+│   ├── RefreshHoroscopesButton.tsx # client component - POST /api/horoscopes/refresh + router.refresh()
 │   └── AliasManager.tsx   # client component - full alias CRUD with sign chips, export/import
 └── styles/
     └── theme.css          # CSS custom properties - all colors live here
@@ -118,6 +120,7 @@ All pure parsing functions (`extractSignsFromArticle`, `extractSignsWithRegex`, 
 | ----------------------------- | ------ | ----------------------------------------------------------------------------------------- |
 | `/api/horoscope/[identifier]` | GET    | Sign slug → single horoscope object; alias name → array of `{sign, ...horoscope}` objects |
 | `/api/horoscopes`             | GET    | All 13 signs at once                                                                      |
+| `/api/horoscopes/refresh`     | POST   | Force rescrape and overwrite cache for every scraped sign (session required)              |
 | `/api/user/aliases`           | GET    | All aliases with their signs, sorted alphabetically                                       |
 | `/api/user/aliases`           | POST   | Create alias `{alias, signs}` or bulk import `{entries: [{alias, signs}]}` / old format   |
 | `/api/user/aliases/[alias]`   | PUT    | Replace signs for an alias `{signs: [...]}`                                               |

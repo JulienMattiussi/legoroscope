@@ -7,7 +7,7 @@ Horoscope hebdomadaire du [Gorafi](https://www.legorafi.fr/category/horoscope/),
 - **Scraping** - 3 stratégies (CSS, RSS, regex) avec fallback automatique ; cache hebdomadaire dans Redis ; fallback sur la dernière valeur connue si tout échoue.
 - **API REST** - un endpoint par signe, un endpoint global pour tous les signes, résolution d'alias (un alias mappé à un ou plusieurs signes → retourne les horoscopes correspondants).
 - **Bot Discord** - commande slash `/horoscope` via webhook Interactions (sans gateway persistant) ; jusqu'à 5 signes ou alias en une seule commande ; si un alias couvre plusieurs signes, tous sont affichés ; autocomplete ; fonctionne en DM et hors serveur (User Install).
-- **Web** - grille des 13 signes avec compteur d'alias par signe, page de détail, page `/aliases` pour créer et gérer les alias (export/import JSON), connexion GitHub OAuth.
+- **Web** - grille des 13 signes avec compteur d'alias par signe, page de détail, page `/aliases` pour créer et gérer les alias (export/import JSON), connexion GitHub OAuth, bouton "Actualiser" pour forcer le rescrape et écraser le cache Redis.
 
 ## Stack
 
@@ -60,6 +60,7 @@ Un alias est un nom (pseudo joueur, surnom…) associé à **un ou plusieurs sig
 | ----------------------------- | ------- | ------------------------------------------------------------------------- |
 | `/api/horoscope/[identifier]` | GET     | Signe (slug) → objet horoscope ; alias → tableau `[{sign, …horoscope}]`   |
 | `/api/horoscopes`             | GET     | Les 13 signes d'un coup                                                   |
+| `/api/horoscopes/refresh`     | POST    | Force le rescrape et écrase le cache Redis (session requise)              |
 | `/api/user/aliases`           | GET     | Tous les alias de l'utilisateur, triés alphabétiquement (session requise) |
 | `/api/user/aliases`           | POST    | Créer un alias `{alias, signs}` ou importer en masse `{entries:[…]}`      |
 | `/api/user/aliases/[alias]`   | PUT     | Remplacer les signes d'un alias `{signs:[…]}`                             |

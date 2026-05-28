@@ -1,5 +1,6 @@
 import { SIGNS } from "@/lib/signs";
 import { HoroscopeCard } from "@/components/HoroscopeCard";
+import { RefreshHoroscopesButton } from "@/components/RefreshHoroscopesButton";
 import { auth } from "@/lib/auth";
 import { getAllUserAliases } from "@/lib/cache";
 import { GORAFI_CONFIG } from "@/lib/gorafi.config";
@@ -122,13 +123,24 @@ export default async function HomePage() {
         />
         Legoroscope
       </h1>
-      <p style={{ color: "var(--text-muted)", margin: "0.25rem 0 1rem" }}>
-        L&apos;horoscope de la semaine{" "}
-        <a href={sourceUrl} target="_blank" rel="noopener noreferrer" className="source-link">
-          selon Le Gorafi
-        </a>
-        .
-      </p>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "0.75rem",
+          flexWrap: "wrap",
+          margin: "0.25rem 0 1rem",
+        }}
+      >
+        <p style={{ color: "var(--text-muted)", margin: 0 }}>
+          L&apos;horoscope de la semaine{" "}
+          <a href={sourceUrl} target="_blank" rel="noopener noreferrer" className="source-link">
+            selon Le Gorafi
+          </a>
+          .
+        </p>
+        <RefreshHoroscopesButton />
+      </div>
       <div
         style={{
           display: "grid",
