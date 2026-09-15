@@ -8,6 +8,7 @@ Horoscope hebdomadaire du [Gorafi](https://www.legorafi.fr/category/horoscope/),
 - **API REST** - un endpoint par signe, un endpoint global pour tous les signes, résolution d'alias (un alias mappé à un ou plusieurs signes → retourne les horoscopes correspondants).
 - **Bot Discord** - commande slash `/horoscope` via webhook Interactions (sans gateway persistant) ; jusqu'à 5 signes ou alias en une seule commande ; si un alias couvre plusieurs signes, tous sont affichés ; autocomplete ; fonctionne en DM et hors serveur (User Install).
 - **Web** - grille des 13 signes avec compteur d'alias par signe, page de détail, page `/aliases` pour créer et gérer les alias (export/import JSON), connexion GitHub OAuth, bouton "Actualiser" pour forcer le rescrape et écraser le cache Redis.
+- **Keepalive** - cron Vercel quotidien qui envoie une commande à Redis pour empêcher la suppression automatique de la base après 14 jours d'inactivité.
 
 ## Stack
 
@@ -43,8 +44,29 @@ make dev       # http://localhost:6677
 | `DISCORD_PUBLIC_KEY`     | Clé publique Ed25519 de l'application Discord            |
 | `DISCORD_APPLICATION_ID` | ID de l'application Discord                              |
 | `DISCORD_BOT_TOKEN`      | Token bot Discord (pour enregistrer les commandes)       |
+| `CRON_SECRET`            | Secret aléatoire 16+ caractères protégeant le keepalive  |
 
 En développement local, `REDIS_URL` peut être omis - un store en mémoire (`global._localStore`) est utilisé automatiquement.
+
+## Keepalive Redis
+
+Redis Cloud supprime une base du plan gratuit après **14 jours consécutifs sans aucune commande Redis**. Consulter la console ou les métriques ne remet pas le compteur à zéro : seules les commandes comptent.
+
+Un cron Vercel déclare dans [vercel.json](vercel.json) un appel quotidien à `/api/cron/keepalive`, qui écrit puis relit la clé `keepalive` dans Redis. L'aller-retour prouve qu'une vraie commande a atteint le serveur.
+
+Mise en place :
+
+1. Ajouter `CRON_SECRET` aux variables d'environnement du projet Vercel (chaîne aléatoire d'au moins 16 caractères). Vercel l'envoie ensuite dans l'en-tête `Authorization: Bearer <CRON_SECRET>` à chaque invocation. Sans ce secret, la route répond 401 à tout le monde.
+2. Déployer. Le cron apparaît dans Settings > Cron Jobs.
+
+Sur le plan Hobby, un cron ne peut se déclencher qu'une fois par jour, et l'heure réelle varie dans l'heure indiquée (`0 6 * * *` se déclenche entre 06:00 et 06:59). Une cadence quotidienne laisse 13 jours de marge si une exécution est manquée : Vercel ne réessaie jamais une invocation en échec.
+
+Test manuel :
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" https://<domaine>/api/cron/keepalive
+# → {"ok":true,"pingedAt":"2026-09-15T06:00:00.000Z"}
+```
 
 ## Alias
 
@@ -66,6 +88,7 @@ Un alias est un nom (pseudo joueur, surnom…) associé à **un ou plusieurs sig
 | `/api/user/aliases/[alias]`   | PUT     | Remplacer les signes d'un alias `{signs:[…]}`                             |
 | `/api/user/aliases/[alias]`   | DELETE  | Supprimer un alias                                                        |
 | `/api/discord`                | POST    | Webhook Discord Interactions                                              |
+| `/api/cron/keepalive`         | GET     | Ping Redis pour éviter la suppression pour inactivité (`CRON_SECRET`)     |
 
 ## Signes supportés
 
@@ -105,6 +128,7 @@ src/
 │       ├── horoscope/[sign]/route.ts     # GET → par signe ou alias
 │       ├── horoscopes/route.ts           # GET → 13 signes d'un coup
 │       ├── discord/route.ts              # POST → Discord Interactions
+│       ├── cron/keepalive/route.ts       # GET → ping Redis (cron Vercel quotidien)
 │       ├── user/aliases/route.ts         # GET/POST → liste et création d'alias
 │       ├── user/aliases/[alias]/route.ts # PUT/DELETE → mise à jour et suppression
 │       └── auth/[...nextauth]/route.ts

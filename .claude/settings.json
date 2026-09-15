@@ -22,5 +22,8 @@
       "Bash(touch:*)",
       "Bash(cat:*)"
     ]
+  },
+  "env": {
+    "CLAUDE_CODE_ENABLE_TELEMETRY": "0"
   }
 }

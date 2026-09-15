@@ -23,6 +23,7 @@ import {
   deleteAliasIndex,
   getAllAliasNames,
   getAllUserAliases,
+  pingCache,
 } from "@/lib/cache";
 
 beforeEach(() => {
@@ -94,6 +95,35 @@ describe("setCachedHoroscope", () => {
     expect(mockSet.mock.calls[0]?.[2]).toBe("EX");
     expect(mockSet.mock.calls[0]?.[3]).toBeGreaterThan(0);
     expect(mockSet.mock.calls[1]?.[2]).toBeUndefined();
+  });
+});
+
+describe("pingCache", () => {
+  it("writes a timestamp then reads it back from Redis", async () => {
+    mockSet.mockResolvedValue("OK");
+    mockGet.mockImplementation(() => Promise.resolve(mockSet.mock.calls[0]?.[1] ?? null));
+
+    const result = await pingCache();
+
+    expect(mockSet).toHaveBeenCalledTimes(1);
+    expect(mockSet.mock.calls[0]?.[0]).toBe("keepalive");
+    expect(mockGet).toHaveBeenCalledWith("keepalive");
+    expect(result).toBe(new Date(result!).toISOString());
+  });
+
+  it("writes without a TTL so the key never expires", async () => {
+    mockSet.mockResolvedValue("OK");
+    mockGet.mockResolvedValueOnce(JSON.stringify("2026-09-15T06:00:00.000Z"));
+
+    await pingCache();
+    expect(mockSet.mock.calls[0]?.[2]).toBeUndefined();
+  });
+
+  it("returns null when the key cannot be read back", async () => {
+    mockSet.mockResolvedValue("OK");
+    mockGet.mockResolvedValueOnce(null);
+
+    expect(await pingCache()).toBeNull();
   });
 });
 
@@ -265,5 +295,11 @@ describe("local store fallback (no REDIS_URL)", () => {
     await setUserAlias("u2", "other", ["cancer"]); // different user, excluded
     const result = await getAllUserAliases("u1");
     expect(result).toEqual({ michel: ["lion"], caroline: ["belier", "verseau"] });
+  });
+
+  it("pingCache round-trips a timestamp through the local store", async () => {
+    const result = await pingCache();
+    expect(result).toBe(g._localStore?.get("keepalive"));
+    expect(result).toBe(new Date(result!).toISOString());
   });
 });

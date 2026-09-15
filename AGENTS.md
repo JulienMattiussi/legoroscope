@@ -43,6 +43,7 @@ src/
 │       ├── horoscopes/route.ts           # GET → all 13 signs at once
 │       ├── horoscopes/refresh/route.ts   # POST → force rescrape + overwrite cache (auth)
 │       ├── discord/route.ts              # POST → Discord interactions
+│       ├── cron/keepalive/route.ts       # GET → Redis ping (Vercel Cron, CRON_SECRET)
 │       ├── user/aliases/route.ts         # GET → all aliases; POST → create or bulk import
 │       ├── user/aliases/[alias]/route.ts # PUT → update signs; DELETE → delete alias
 │       └── auth/[...nextauth]/route.ts
@@ -84,6 +85,7 @@ Le Furet est le 13e signe bonus du Gorafi - présent occasionnellement dans les 
 | `horoscope:stale:{sign}`         | last known good `{ text, fetchedAt, strategy, sourceUrl }` |
 | `user:{githubId}:alias:{lower}`  | `["sign1", "sign2"]` - signs covered by this alias         |
 | `alias:{lower}`                  | `{ signs, userId }` - global reverse index                 |
+| `keepalive`                      | ISO timestamp of the last keepalive ping (no TTL)          |
 
 ## Aliases
 
@@ -126,7 +128,18 @@ All pure parsing functions (`extractSignsFromArticle`, `extractSignsWithRegex`, 
 | `/api/user/aliases/[alias]`   | PUT    | Replace signs for an alias `{signs: [...]}`                                               |
 | `/api/user/aliases/[alias]`   | DELETE | Delete an alias                                                                           |
 | `/api/discord`                | POST   | Discord Interactions webhook                                                              |
+| `/api/cron/keepalive`         | GET    | Pings Redis to prevent free-tier deletion (`CRON_SECRET` bearer token required)           |
 | `/api/auth/[...nextauth]`     | -      | NextAuth handlers                                                                         |
+
+## Redis keepalive
+
+Redis Cloud deletes a free-tier database after **14 consecutive days without a single Redis command**. Console visits and metrics do not reset the timer - only commands do. A database was already lost this way once, so the ping is not optional.
+
+`vercel.json` declares a daily Vercel Cron hitting `GET /api/cron/keepalive`, which calls `pingCache()` from `src/lib/cache.ts`. That helper writes the `keepalive` key then reads it back, so the round trip proves a real command reached the server rather than just proving the route ran.
+
+- Vercel sends `Authorization: Bearer ${CRON_SECRET}` when `CRON_SECRET` is set on the project. The route fails closed: no secret configured means 401 for everyone.
+- Hobby plan: one invocation per day maximum, fired anywhere inside the scheduled hour. Vercel never retries a failed invocation, which is why the schedule is daily rather than weekly - a missed run still leaves 13 days of margin.
+- Any new cron route goes in `src/app/api/cron/`, guards on `CRON_SECRET` the same way, and is registered in `vercel.json`.
 
 ## Discord
 
@@ -151,13 +164,14 @@ REDIS_URL=                # from Vercel Storage > Serverless Redis; pull with: n
 DISCORD_PUBLIC_KEY=       # for Ed25519 signature verification
 DISCORD_APPLICATION_ID=
 DISCORD_BOT_TOKEN=        # for registering commands
+CRON_SECRET=              # random 16+ char string; Vercel sends it as a bearer token to cron routes
 ```
 
 When `REDIS_URL` is absent (local dev), `cache.ts` falls back to an in-memory `Map` on `global._localStore` that survives Next.js HMR.
 
-## Current status (as of 2026-04-28)
+## Current status (as of 2026-09-15)
 
-The codebase is functionally complete. All checks and unit tests pass (110 tests).
+The codebase is functionally complete. `make check` passes (134 tests: 116 unit + 18 component).
 
 ### Done
 
@@ -167,14 +181,15 @@ The codebase is functionally complete. All checks and unit tests pass (110 tests
 - **Discord** - Ed25519 verification + command dispatch; `/api/discord` handles PING and `APPLICATION_COMMAND`; autocomplete includes both sign names and user aliases; multi-sign aliases expand to one line per sign.
 - **Auth** - NextAuth v5 GitHub OAuth; single allowed login via `ALLOWED_GITHUB_LOGIN` env var; `jwt` callback pins `token.sub` to the stable GitHub numeric profile ID for consistent cross-browser identity.
 - **Frontend** - Home grid (3 columns, 1200px wide, alias count badge per sign, copy button, source link in subtitle); sign detail page (read-only); `/aliases` page (create/edit/delete aliases, sign chips, export/import JSON with old pseudo format backward compat); session-aware nav; write errors surfaced via `--error` color notification.
-- **Unit tests** - `tests/unit/`: all five scraper strategy parsing functions, orchestrator, cache (Redis + local store fallback), discord sig, signs, discord route handler (110 tests).
+- **Keepalive** - `pingCache()` in `cache.ts` + `GET /api/cron/keepalive` + daily Vercel Cron in `vercel.json`, guarded by `CRON_SECRET`.
+- **Unit tests** - `tests/unit/`: all five scraper strategy parsing functions, orchestrator, cache (Redis + local store fallback), discord sig, signs, discord route handler, refresh route, keepalive route (116 tests).
 - **Component tests** - `tests/component/AliasManager.test.tsx` (18 tests).
 
 ### Still missing
 
 - `scripts/register-discord-command.ts` - one-off script to register `/horoscope <signe>` via the Discord REST API. Needs `DISCORD_APPLICATION_ID` + `DISCORD_BOT_TOKEN`.
-- `tests/e2e/` - Playwright e2e tests (directory exists, no files yet).
-- Vercel deployment + env vars not wired up yet.
+- `tests/e2e/` - Playwright e2e tests (directory exists, no files yet). Note: `make install` fails at `npx playwright install chromium` on Ubuntu 26.04 ("Playwright does not support chromium on ubuntu26.04-x64"). The npm install itself succeeds, and `make check` needs no browser.
+- Vercel deployment + env vars not wired up yet. `CRON_SECRET` must be set on the project for the keepalive cron to work.
 
 ## Coding rules
 
@@ -217,6 +232,7 @@ Every feature, change, or bug fix must be accompanied by:
 - **TypeScript narrowing across async callbacks** - after `if (!session?.user?.id) return`, extract `const userId = session.user.id` before any `async` callback or `Promise.all` to avoid losing the narrowed type.
 - **Case-insensitive string comparison** - use `localeEquals(a, b)` from `src/lib/signs.ts`. Do not inline `localeCompare` calls.
 - **Alias vs sign slug in horoscope endpoint** - `GET /api/horoscope/[identifier]` returns a **single object** for a sign slug and an **array** for an alias. Callers must handle both shapes.
+- **Cron routes** - live in `src/app/api/cron/`, export `GET`, compare the `authorization` header to `Bearer ${process.env.CRON_SECRET}` and fail closed when the secret is unset, and are registered in `vercel.json`.
 - **Run `make check` before committing.**
 
 ## Commands

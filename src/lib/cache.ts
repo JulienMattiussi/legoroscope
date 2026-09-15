@@ -96,6 +96,27 @@ export async function setCachedHoroscope(
 }
 
 // ---------------------------------------------------------------------------
+// Keepalive
+// Redis Cloud deletes a free-tier database after 14 consecutive days without a
+// single Redis command. Console visits and metrics do not reset that timer, so
+// the ping writes a key then reads it back: the round trip proves a real
+// command reached the server. Returns the stored timestamp, or null if the
+// read back came up empty.
+// ---------------------------------------------------------------------------
+
+const KEEPALIVE_KEY = "keepalive";
+
+export async function pingCache(): Promise<string | null> {
+  const stamp = new Date().toISOString();
+  if (!isKvAvailable()) {
+    localStore.set(KEEPALIVE_KEY, stamp);
+    return (localStore.get(KEEPALIVE_KEY) as string) ?? null;
+  }
+  await redisSet(KEEPALIVE_KEY, stamp);
+  return redisGet<string>(KEEPALIVE_KEY);
+}
+
+// ---------------------------------------------------------------------------
 // Aliases
 // An alias maps a user-defined name to one or more zodiac signs.
 // Key schema:
