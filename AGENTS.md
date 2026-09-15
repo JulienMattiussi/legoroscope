@@ -131,6 +131,12 @@ All pure parsing functions (`extractSignsFromArticle`, `extractSignsWithRegex`, 
 | `/api/cron/keepalive`         | GET    | Pings Redis to prevent free-tier deletion (`CRON_SECRET` bearer token required)           |
 | `/api/auth/[...nextauth]`     | -      | NextAuth handlers                                                                         |
 
+## Redis provisioning
+
+The store is a Redis Cloud free database (30 MB) provisioned through the Vercel Marketplace, and it is **shared with the `veilleur` project** (Discord watch bot). Key prefixes do not collide: `veilleur` owns `report:*` and `basket:*`, this project owns `horoscope:*`, `alias:*`, `user:*` and `keepalive`. Deleting or re-provisioning the store breaks both projects, and both must be reconnected and redeployed.
+
+When connecting the store to a project, the **Custom Prefix** field composes the variable name and the `_URL` suffix is fixed: type `REDIS` to get `REDIS_URL`. Left empty it yields `STORAGE_URL`, which nothing reads.
+
 ## Redis keepalive
 
 Redis Cloud deletes a free-tier database after **14 consecutive days without a single Redis command**. Console visits and metrics do not reset the timer - only commands do. A database was already lost this way once, so the ping is not optional.
@@ -189,7 +195,7 @@ The codebase is functionally complete. `make check` passes (134 tests: 116 unit 
 
 - `scripts/register-discord-command.ts` - one-off script to register `/horoscope <signe>` via the Discord REST API. Needs `DISCORD_APPLICATION_ID` + `DISCORD_BOT_TOKEN`.
 - `tests/e2e/` - Playwright e2e tests (directory exists, no files yet). Note: `make install` fails at `npx playwright install chromium` on Ubuntu 26.04 ("Playwright does not support chromium on ubuntu26.04-x64"). The npm install itself succeeds, and `make check` needs no browser.
-- Vercel deployment + env vars not wired up yet. `CRON_SECRET` must be set on the project for the keepalive cron to work.
+- Nothing else. Vercel deployment, env vars, Redis store and the keepalive cron are live as of 2026-09-15.
 
 ## Coding rules
 
